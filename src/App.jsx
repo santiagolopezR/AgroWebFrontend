@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Sprout, ClipboardCheck, MapPin, Calendar, User, Repeat, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Sprout, ClipboardCheck, MapPin, Calendar, User, Repeat } from "lucide-react";
 
-const API_URL = "http://localhost:8000/api";
-
+const API_URL = "https://agroweb-vv4b.onrender.com/api";
 let uid = 0;
 const nextId = () => `p-${++uid}`;
 
@@ -96,7 +95,6 @@ export default function RegistroActividad() {
   const [filas, setFilas] = useState([nuevaFila()]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState("");
   const [guardado, setGuardadoOk] = useState(false);
   const lastRecipe = useRef(null);
 
@@ -104,7 +102,6 @@ export default function RegistroActividad() {
     const traerDatos = async () => {
       try {
         setCargando(true);
-        setError("");
 
         const [lotesRes, productosRes, tiposRes] = await Promise.all([
           fetch(`${API_URL}/lotes/`),
@@ -125,7 +122,6 @@ export default function RegistroActividad() {
         setTiposActividad(tiposData.results || tiposData);
         setCargando(false);
       } catch (err) {
-        setError(`Error: ${err.message}. ¿Django está corriendo en localhost:8000?`);
         setCargando(false);
       }
     };
@@ -163,10 +159,8 @@ export default function RegistroActividad() {
   const guardar = async () => {
     try {
       setGuardando(true);
-      setError("");
 
       if (!loteId || !tipoId) {
-        setError("Debes seleccionar un lote y un tipo de actividad");
         setGuardando(false);
         return;
       }
@@ -221,7 +215,6 @@ export default function RegistroActividad() {
       setFecha(new Date().toISOString().slice(0, 10));
       setGuardando(false);
     } catch (err) {
-      setError(`Error al guardar: ${err.message}`);
       setGuardando(false);
     }
   };
@@ -249,13 +242,6 @@ export default function RegistroActividad() {
           <Sprout size={22} className="text-[#1F3D2B]" strokeWidth={2.2} />
           <h1 className="font-display text-xl font-bold text-[#1F3D2B] tracking-tight">Registro de actividad</h1>
         </div>
-
-        {error && (
-          <div className="mb-4 rounded-lg border-2 border-[#C0402A] bg-[#FBE4E1] p-3 flex gap-2">
-            <AlertCircle size={18} className="text-[#C0402A] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[#8B2D1F]">{error}</p>
-          </div>
-        )}
 
         <div className="rounded-lg border-2 border-[#1F3D2B] bg-[#FBF9F2] p-4 shadow-[3px_3px_0_#1F3D2B]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -353,10 +339,6 @@ export default function RegistroActividad() {
           <ClipboardCheck size={16} />
           {guardando ? "Guardando..." : guardado ? "Actividad guardada ✓" : "Guardar actividad"}
         </button>
-
-        <p className="mt-3 text-center text-[11px] text-[#9A8C6E]">
-          Conectado a: <span className="font-mono">http://localhost:8000/api</span>
-        </p>
       </div>
     </div>
   );
