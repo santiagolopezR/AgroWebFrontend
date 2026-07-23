@@ -188,7 +188,11 @@ export default function RegistroActividad() {
     try {
       setGuardando(true);
 
+<<<<<<< HEAD
       if (lotesSeleccionados.length === 0 || !tipoId) {
+=======
+      if (!loteId || !tipoId) {
+>>>>>>> aa92c76236e105d3627f897c53779922e3f239dc
         setGuardando(false);
         return;
       }
@@ -285,6 +289,7 @@ export default function RegistroActividad() {
           <h1 className="font-display text-xl font-bold text-[#1F3D2B] tracking-tight">Registro de actividad</h1>
         </div>
 
+<<<<<<< HEAD
         {/* Selección de lotes */}
         <div className="rounded-lg border-2 border-[#1F3D2B] bg-[#FBF9F2] p-4 shadow-[3px_3px_0_#1F3D2B] mb-4">
           <label className="flex items-center gap-1 text-[10px] uppercase tracking-widest font-mono text-[#6B5D45] mb-2">
@@ -313,6 +318,8 @@ export default function RegistroActividad() {
           )}
         </div>
 
+=======
+>>>>>>> aa92c76236e105d3627f897c53779922e3f239dc
         <div className="rounded-lg border-2 border-[#1F3D2B] bg-[#FBF9F2] p-4 shadow-[3px_3px_0_#1F3D2B]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
