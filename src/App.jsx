@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import Login from './Login'
+import Actividades from './Actividades'
 
 export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState('dashboard')
 
   useEffect(() => {
     const checkSession = async () => {
@@ -16,8 +18,8 @@ export default function App() {
     checkSession()
 
     supabase.auth.onAuthStateChange((event, session) => {
-  setUser(session?.user || null)
-})
+      setUser(session?.user || null)
+    })
   }, [])
 
   const handleLogout = async () => {
@@ -44,9 +46,35 @@ export default function App() {
           </button>
         </div>
       </div>
-      <div className="p-8">
-        <h2 className="text-2xl font-bold text-[#1F3D2B] mb-4">Dashboard</h2>
-        <p className="text-[#6B5D45]">Bienvenido a AgroWeb</p>
+
+      <div className="flex">
+        <div className="w-48 bg-white border-r-2 border-[#1F3D2B] p-4">
+          <div className="space-y-2">
+            <button
+              onClick={() => setCurrentPage('dashboard')}
+              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'dashboard' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setCurrentPage('actividades')}
+              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'actividades' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
+            >
+              Actividades
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1">
+          {currentPage === 'dashboard' && (
+            <div className="p-8">
+              <h2 className="text-2xl font-bold text-[#1F3D2B] mb-4">Dashboard</h2>
+              <p className="text-[#6B5D45]">Bienvenido a AgroWeb</p>
+            </div>
+          )}
+
+          {currentPage === 'actividades' && <Actividades />}
+        </div>
       </div>
     </div>
   )
