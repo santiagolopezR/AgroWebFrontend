@@ -6,18 +6,15 @@ export default function Configuracion() {
   const [tab, setTab] = useState('fincas')
   const [loading, setLoading] = useState(false)
   
-  // Fincas
   const [fincas, setFincas] = useState([])
   const [nombreFinca, setNombreFinca] = useState('')
   const [ubicacionFinca, setUbicacionFinca] = useState('')
   
-  // Lotes
   const [lotes, setLotes] = useState([])
   const [fincaSeleccionada, setFincaSeleccionada] = useState('')
   const [nombreLote, setNombreLote] = useState('')
   const [superficieLote, setSuperficieLote] = useState('')
   
-  // Productos
   const [productos, setProductos] = useState([])
   const [nombreProducto, setNombreProducto] = useState('')
   const [categoriaProducto, setCategoria] = useState('')
@@ -42,7 +39,6 @@ export default function Configuracion() {
     }
   }
 
-  // FINCAS
   const crearFinca = async () => {
     if (!nombreFinca || !ubicacionFinca) {
       alert('Completa todos los campos')
@@ -57,7 +53,7 @@ export default function Configuracion() {
         nombre: nombreFinca,
         ubicacion: ubicacionFinca,
         cliente_id: 1,
-        usuario_id: user.id,
+        user_id: user.id,
       })
       
       if (error) throw error
@@ -82,7 +78,6 @@ export default function Configuracion() {
     }
   }
 
-  // LOTES
   const crearLote = async () => {
     if (!fincaSeleccionada || !nombreLote || !superficieLote) {
       alert('Completa todos los campos')
@@ -97,7 +92,7 @@ export default function Configuracion() {
         finca_id: parseInt(fincaSeleccionada),
         nombre: nombreLote,
         superficie: parseFloat(superficieLote),
-        usuario_id: user.id,
+        user_id: user.id,
       })
       
       if (error) throw error
@@ -123,7 +118,6 @@ export default function Configuracion() {
     }
   }
 
-  // PRODUCTOS
   const crearProducto = async () => {
     if (!nombreProducto || !categoriaProducto || !precioProducto) {
       alert('Completa todos los campos')
@@ -139,7 +133,7 @@ export default function Configuracion() {
         categoria: categoriaProducto,
         unidad: unidadProducto,
         precio_actual: parseFloat(precioProducto),
-        usuario_id: user.id,
+        user_id: user.id,
       })
       
       if (error) throw error
@@ -169,7 +163,6 @@ export default function Configuracion() {
     <div className="p-8 max-w-4xl">
       <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">⚙️ Configuración</h2>
 
-      {/* TABS */}
       <div className="flex gap-4 mb-8 border-b-2 border-[#D8D2BE]">
         <button
           onClick={() => setTab('fincas')}
@@ -191,7 +184,6 @@ export default function Configuracion() {
         </button>
       </div>
 
-      {/* FINCAS */}
       {tab === 'fincas' && (
         <div className="space-y-8">
           <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8">
@@ -247,7 +239,6 @@ export default function Configuracion() {
         </div>
       )}
 
-      {/* LOTES */}
       {tab === 'lotes' && (
         <div className="space-y-8">
           <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8">
@@ -314,7 +305,6 @@ export default function Configuracion() {
         </div>
       )}
 
-      {/* PRODUCTOS */}
       {tab === 'productos' && (
         <div className="space-y-8">
           <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8">
