@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import Login from './Login'
-import RegistroActividad from './RegistroActividad'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -47,7 +46,7 @@ export default function App() {
           </button>
         </div>
       </div>
-      <RegistroActividad />
+      <div className="p-8">Dashboard (Actividades aquí después)</div>
     </div>
   )
 }
