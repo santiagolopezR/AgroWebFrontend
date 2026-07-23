@@ -51,10 +51,13 @@ export default function Configuracion() {
     
     try {
       setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      
       const { error } = await supabase.from('api_finca').insert({
         nombre: nombreFinca,
         ubicacion: ubicacionFinca,
-        cliente_id: 1, // Por ahora asignamos a cliente 1
+        cliente_id: 1,
+        user_id: user.id,
       })
       
       if (error) throw error
@@ -88,10 +91,13 @@ export default function Configuracion() {
     
     try {
       setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      
       const { error } = await supabase.from('api_lote').insert({
         finca_id: parseInt(fincaSeleccionada),
         nombre: nombreLote,
         superficie: parseFloat(superficieLote),
+        user_id: user.id,
       })
       
       if (error) throw error
@@ -126,11 +132,14 @@ export default function Configuracion() {
     
     try {
       setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      
       const { error } = await supabase.from('api_producto').insert({
         nombre: nombreProducto,
         categoria: categoriaProducto,
         unidad: unidadProducto,
         precio_actual: parseFloat(precioProducto),
+        user_id: user.id,
       })
       
       if (error) throw error
