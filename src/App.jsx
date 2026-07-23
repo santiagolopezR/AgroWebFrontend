@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import Login from './Login'
 import RegistroActividad from './RegistroActividad'
-import Actividades from './Actividades'
+import Configuracion from './Configuracion'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -49,25 +49,37 @@ export default function App() {
       </div>
 
       <div className="flex">
-        <div className="w-48 bg-white border-r-2 border-[#1F3D2B] p-4">
-          <div className="space-y-2">
+        <div className="w-56 bg-white border-r-4 border-[#1F3D2B] p-6 min-h-screen">
+          <div className="space-y-3">
             <button
               onClick={() => setCurrentPage('dashboard')}
-              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'dashboard' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
+              className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
+                currentPage === 'dashboard'
+                  ? 'bg-[#1F3D2B] text-white'
+                  : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
+              }`}
             >
               📊 Dashboard
             </button>
             <button
-              onClick={() => setCurrentPage('registro')}
-              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'registro' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
+              onClick={() => setCurrentPage('configuracion')}
+              className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
+                currentPage === 'configuracion'
+                  ? 'bg-[#1F3D2B] text-white'
+                  : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
+              }`}
             >
-              📝 Registrar Actividad
+              ⚙️ Configuración
             </button>
             <button
-              onClick={() => setCurrentPage('actividades')}
-              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'actividades' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
+              onClick={() => setCurrentPage('registro')}
+              className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
+                currentPage === 'registro'
+                  ? 'bg-[#1F3D2B] text-white'
+                  : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
+              }`}
             >
-              ✅ Actividades realizadas
+              📝 Registrar Actividad
             </button>
           </div>
         </div>
@@ -75,13 +87,13 @@ export default function App() {
         <div className="flex-1">
           {currentPage === 'dashboard' && (
             <div className="p-8">
-              <h2 className="text-2xl font-bold text-[#1F3D2B] mb-4">Dashboard</h2>
-              <p className="text-[#6B5D45]">Bienvenido a AgroWeb</p>
+              <h2 className="text-3xl font-bold text-[#1F3D2B] mb-4">Dashboard</h2>
+              <p className="text-[#6B5D45] text-lg">Resumen de actividades (próximamente)</p>
             </div>
           )}
 
+          {currentPage === 'configuracion' && <Configuracion />}
           {currentPage === 'registro' && <RegistroActividad />}
-          {currentPage === 'actividades' && <Actividades />}
         </div>
       </div>
     </div>
