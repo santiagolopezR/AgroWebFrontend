@@ -57,7 +57,7 @@ export default function Configuracion() {
         nombre: nombreFinca,
         ubicacion: ubicacionFinca,
         cliente_id: 1,
-        user_id: user.id,
+        usuario_id: user.id,
       })
       
       if (error) throw error
@@ -97,7 +97,7 @@ export default function Configuracion() {
         finca_id: parseInt(fincaSeleccionada),
         nombre: nombreLote,
         superficie: parseFloat(superficieLote),
-        user_id: user.id,
+        usuario_id: user.id,
       })
       
       if (error) throw error
@@ -139,7 +139,7 @@ export default function Configuracion() {
         categoria: categoriaProducto,
         unidad: unidadProducto,
         precio_actual: parseFloat(precioProducto),
-        user_id: user.id,
+        usuario_id: user.id,
       })
       
       if (error) throw error
