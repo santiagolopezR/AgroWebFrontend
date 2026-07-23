@@ -15,11 +15,9 @@ export default function App() {
 
     checkSession()
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null)
-    })
-
-    return () => authListener?.unsubscribe()
+    supabase.auth.onAuthStateChange((event, session) => {
+  setUser(session?.user || null)
+})
   }, [])
 
   const handleLogout = async () => {
