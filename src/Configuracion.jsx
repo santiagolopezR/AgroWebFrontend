@@ -15,6 +15,9 @@ export default function Configuracion() {
   const [nombreLote, setNombreLote] = useState('')
   const [superficieLote, setSuperficieLote] = useState('')
   
+  const [categorias, setCategorias] = useState([])
+  const [nombreCategoria, setNombreCategoria] = useState('')
+  
   const [productos, setProductos] = useState([])
   const [nombreProducto, setNombreProducto] = useState('')
   const [categoriaProducto, setCategoria] = useState('')
@@ -29,10 +32,12 @@ export default function Configuracion() {
     try {
       const { data: fincasData } = await supabase.from('api_finca').select('*')
       const { data: lotesData } = await supabase.from('api_lote').select('*')
+      const { data: categoriasData } = await supabase.from('api_categoria').select('*')
       const { data: productosData } = await supabase.from('api_producto').select('*')
       
       setFincas(fincasData || [])
       setLotes(lotesData || [])
+      setCategorias(categoriasData || [])
       setProductos(productosData || [])
     } catch (err) {
       console.error('Error:', err)
@@ -118,6 +123,42 @@ export default function Configuracion() {
     }
   }
 
+  const crearCategoria = async () => {
+    if (!nombreCategoria) {
+      alert('Escribe el nombre')
+      return
+    }
+    
+    try {
+      setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      const { error } = await supabase.from('api_categoria').insert({
+        nombre: nombreCategoria,
+        user_id: user.id,
+      })
+      
+      if (error) throw error
+      alert('✓ Categoría creada')
+      setNombreCategoria('')
+      cargarDatos()
+    } catch (err) {
+      alert('Error: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const eliminarCategoria = async (id) => {
+    if (!confirm('¿Eliminar?')) return
+    try {
+      await supabase.from('api_categoria').delete().eq('id', id)
+      cargarDatos()
+    } catch (err) {
+      alert('Error: ' + err.message)
+    }
+  }
+
   const crearProducto = async () => {
     if (!nombreProducto || !categoriaProducto || !precioProducto) {
       alert('Completa todos los campos')
@@ -163,22 +204,28 @@ export default function Configuracion() {
     <div className="p-8 max-w-4xl">
       <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">⚙️ Configuración</h2>
 
-      <div className="flex gap-4 mb-8 border-b-2 border-[#D8D2BE]">
+      <div className="flex gap-4 mb-8 border-b-2 border-[#D8D2BE] overflow-x-auto">
         <button
           onClick={() => setTab('fincas')}
-          className={`px-6 py-3 font-bold text-lg ${tab === 'fincas' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}
+          className={`px-6 py-3 font-bold text-lg whitespace-nowrap ${tab === 'fincas' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}
         >
           🏞️ Fincas
         </button>
         <button
           onClick={() => setTab('lotes')}
-          className={`px-6 py-3 font-bold text-lg ${tab === 'lotes' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}
+          className={`px-6 py-3 font-bold text-lg whitespace-nowrap ${tab === 'lotes' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}
         >
           📍 Lotes
         </button>
         <button
+          onClick={() => setTab('categorias')}
+          className={`px-6 py-3 font-bold text-lg whitespace-nowrap ${tab === 'categorias' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}
+        >
+          🏷️ Categorías
+        </button>
+        <button
           onClick={() => setTab('productos')}
-          className={`px-6 py-3 font-bold text-lg ${tab === 'productos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}
+          className={`px-6 py-3 font-bold text-lg whitespace-nowrap ${tab === 'productos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}
         >
           📦 Productos
         </button>
@@ -305,6 +352,55 @@ export default function Configuracion() {
         </div>
       )}
 
+      {tab === 'categorias' && (
+        <div className="space-y-8">
+          <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8">
+            <h3 className="text-2xl font-bold text-[#1F3D2B] mb-6">Crear Nueva Categoría</h3>
+            <div className="space-y-4 mb-6">
+              <input
+                type="text"
+                value={nombreCategoria}
+                onChange={(e) => setNombreCategoria(e.target.value)}
+                placeholder="Nombre de la categoría"
+                className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
+              />
+            </div>
+            <button
+              onClick={crearCategoria}
+              disabled={loading}
+              className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg hover:bg-[#0F2116] disabled:opacity-50 text-lg"
+            >
+              <Plus size={20} className="inline mr-2" /> Crear Categoría
+            </button>
+          </div>
+
+          <div className="bg-white rounded-lg border-2 border-[#D8D2BE] p-8">
+            <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">Categorías Disponibles</h3>
+            <div className="space-y-3">
+              {categorias.length === 0 ? (
+                <p className="text-[#6B5D45]">No hay categorías</p>
+              ) : (
+                categorias.map(c => (
+                  <div key={c.id} className="flex justify-between items-center p-4 border-2 border-[#D8D2BE] rounded-lg">
+                    <div>
+                      <div className="font-bold text-lg">{c.nombre}</div>
+                    </div>
+                    {c.user_id && (
+                      <button
+                        onClick={() => eliminarCategoria(c.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === 'productos' && (
         <div className="space-y-8">
           <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8">
@@ -317,13 +413,16 @@ export default function Configuracion() {
                 placeholder="Nombre del producto"
                 className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
               />
-              <input
-                type="text"
+              <select
                 value={categoriaProducto}
                 onChange={(e) => setCategoria(e.target.value)}
-                placeholder="Categoría (Herbicida, Fungicida, etc)"
                 className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
-              />
+              >
+                <option value="">Seleccionar categoría...</option>
+                {categorias.map(c => (
+                  <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                ))}
+              </select>
               <div className="grid grid-cols-2 gap-4">
                 <select
                   value={unidadProducto}
