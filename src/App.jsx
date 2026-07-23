@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import Login from './Login'
+import RegistroActividad from './RegistroActividad'
 import Actividades from './Actividades'
 
 export default function App() {
@@ -54,13 +55,19 @@ export default function App() {
               onClick={() => setCurrentPage('dashboard')}
               className={`w-full text-left px-4 py-2 rounded ${currentPage === 'dashboard' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
             >
-              Dashboard
+              📊 Dashboard
+            </button>
+            <button
+              onClick={() => setCurrentPage('registro')}
+              className={`w-full text-left px-4 py-2 rounded ${currentPage === 'registro' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
+            >
+              📝 Registrar Actividad
             </button>
             <button
               onClick={() => setCurrentPage('actividades')}
               className={`w-full text-left px-4 py-2 rounded ${currentPage === 'actividades' ? 'bg-[#1F3D2B] text-white' : 'hover:bg-[#F5F2E6]'}`}
             >
-              Actividades
+              ✅ Actividades realizadas
             </button>
           </div>
         </div>
@@ -73,6 +80,7 @@ export default function App() {
             </div>
           )}
 
+          {currentPage === 'registro' && <RegistroActividad />}
           {currentPage === 'actividades' && <Actividades />}
         </div>
       </div>
