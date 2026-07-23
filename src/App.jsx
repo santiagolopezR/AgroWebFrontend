@@ -8,7 +8,6 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar si hay sesión activa
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession()
       setUser(data.session?.user || null)
@@ -17,7 +16,6 @@ export default function App() {
 
     checkSession()
 
-    // Escuchar cambios de autenticación
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null)
     })
