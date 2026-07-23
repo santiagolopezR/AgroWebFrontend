@@ -36,17 +36,20 @@ export default function App() {
   }
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#F5F2E6]">
       <div className="p-4 bg-[#1F3D2B] text-white flex justify-between items-center">
-        <h1>AgroWeb</h1>
+        <h1 className="text-2xl font-bold">AgroWeb</h1>
         <div className="flex gap-4 items-center">
-          <span>Bienvenido, {user.email}</span>
+          <span>{user.email}</span>
           <button onClick={handleLogout} className="bg-red-600 px-4 py-2 rounded hover:bg-red-700">
             Salir
           </button>
         </div>
       </div>
-      <div className="p-8">Dashboard (Actividades aquí después)</div>
+      <div className="p-8">
+        <h2 className="text-2xl font-bold text-[#1F3D2B] mb-4">Dashboard</h2>
+        <p className="text-[#6B5D45]">Bienvenido a AgroWeb</p>
+      </div>
     </div>
   )
 }
