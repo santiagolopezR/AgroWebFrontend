@@ -72,7 +72,6 @@ export default function RegistroActividad() {
       
       const fila = { ...f, [campo]: valor }
       
-      // Cálculos bidireccionales de dosis
       if (campo === 'dosisLiterPorHa') {
         const dosis_ha = parseFloat(valor) || 0
         const ha = hectareasTotales || 1
@@ -83,7 +82,6 @@ export default function RegistroActividad() {
         fila.dosisLiterPorHa = ha > 0 ? (dosis_tot / ha).toFixed(2) : '0'
       }
       
-      // Calcular total (dosis total * precio)
       if (campo === 'dosisTotal' || campo === 'precio_unitario') {
         const dosis = parseFloat(fila.dosisTotal) || 0
         const precio = parseFloat(fila.precio_unitario) || 0
@@ -132,7 +130,8 @@ export default function RegistroActividad() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      const { data, error } = await supabase
+      // 1. Crear la actividad
+      const { data: actividad, error: errorActividad } = await supabase
         .from('api_actividad')
         .insert({
           tipo_id: parseInt(tipoActividad),
@@ -143,9 +142,43 @@ export default function RegistroActividad() {
         })
         .select()
 
-      if (error) throw error
+      if (errorActividad) throw errorActividad
 
-      alert('✓ Actividad guardada')
+      const actividadId = actividad[0].id
+
+      // 2. Guardar lotes asociados
+      const lotesData = lotesSeleccionados.map(loteId => ({
+        actividad_id: actividadId,
+        lote_id: loteId,
+        hectareas: lotes.find(l => l.id === loteId)?.superficie || 0,
+      }))
+
+      const { error: errorLotes } = await supabase
+        .from('api_actividad_lote')
+        .insert(lotesData)
+
+      if (errorLotes) throw errorLotes
+
+      // 3. Guardar productos asociados
+      const productosData = filas
+        .filter(f => f.producto_id)
+        .map(f => ({
+          actividad_id: actividadId,
+          producto_id: parseInt(f.producto_id),
+          cantidad: parseFloat(f.dosisTotal) || 0,
+          precio_unitario: parseFloat(f.precio_unitario) || 0,
+          total: parseFloat(f.total) || 0,
+        }))
+
+      if (productosData.length > 0) {
+        const { error: errorProductos } = await supabase
+          .from('api_actividad_producto')
+          .insert(productosData)
+
+        if (errorProductos) throw errorProductos
+      }
+
+      alert('✓ Actividad guardada con todos los detalles')
       setFilas([nuevaFila()])
       setLotesSeleccionados([])
       setTipoActividad('')
@@ -161,7 +194,7 @@ export default function RegistroActividad() {
   if (loading) return <div className="p-8">Cargando datos...</div>
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8 max-w-6xl">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-[#1F3D2B] mb-2">Registrar Actividad</h2>
         <p className="text-[#6B5D45]">Fumigación, riego, siembra, etc.</p>
@@ -179,17 +212,17 @@ export default function RegistroActividad() {
               value={buscarLotes}
               onChange={(e) => setBuscarLotes(e.target.value)}
               placeholder="Buscar lote..."
-              className="w-full pl-10 pr-4 py-2 border-2 border-[#D8D2BE] rounded-lg"
+              className="w-full pl-10 pr-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
             />
           </div>
         </div>
 
-        <div className="max-h-64 overflow-y-auto border-2 border-[#D8D2BE] rounded-lg p-4 space-y-2 mb-4">
+        <div className="max-h-72 overflow-y-auto border-2 border-[#D8D2BE] rounded-lg p-4 space-y-2 mb-4">
           {lotesFiltrados.length === 0 ? (
             <p className="text-[#6B5D45]">No hay lotes</p>
           ) : (
             lotesFiltrados.map(lote => (
-              <div key={lote.id} className="flex items-center gap-3 p-2 hover:bg-[#F5F2E6] rounded">
+              <div key={lote.id} className="flex items-center gap-3 p-3 hover:bg-[#F5F2E6] rounded-lg border border-[#D8D2BE]">
                 <input
                   type="checkbox"
                   id={`lote-${lote.id}`}
@@ -197,9 +230,9 @@ export default function RegistroActividad() {
                   onChange={() => toggleLote(lote.id)}
                   className="w-5 h-5 cursor-pointer"
                 />
-                <label htmlFor={`lote-${lote.id}`} className="cursor-pointer flex-1">
-                  <span className="font-medium">{lote.nombre}</span>
-                  <span className="ml-2 text-sm text-[#6B5D45]">({lote.superficie} ha)</span>
+                <label htmlFor={`lote-${lote.id}`} className="cursor-pointer flex-1 text-lg">
+                  <span className="font-bold">{lote.nombre}</span>
+                  <span className="ml-3 text-[#6B5D45]">({lote.superficie} ha)</span>
                 </label>
               </div>
             ))
@@ -207,7 +240,7 @@ export default function RegistroActividad() {
         </div>
 
         {hectareasTotales > 0 && (
-          <div className="bg-[#1F3D2B] text-white p-4 rounded-lg font-bold text-lg">
+          <div className="bg-[#1F3D2B] text-white p-4 rounded-lg font-bold text-xl">
             📊 Total: {hectareasTotales} ha
           </div>
         )}
@@ -222,7 +255,7 @@ export default function RegistroActividad() {
             <select
               value={tipoActividad}
               onChange={(e) => setTipoActividad(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
+              className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg font-medium"
             >
               <option value="">Seleccionar tipo...</option>
               {tiposActividad.map(t => (
@@ -264,26 +297,26 @@ export default function RegistroActividad() {
       <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
         <h3 className="text-xl font-bold text-[#1F3D2B] mb-6">3️⃣ Productos Aplicados</h3>
         
-        <div className="overflow-x-auto mb-6">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto mb-6 border-2 border-[#D8D2BE] rounded-lg">
+          <table className="w-full text-base">
             <thead>
-              <tr className="border-b-4 border-[#1F3D2B] bg-[#F5F2E6]">
-                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Producto</th>
-                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Dosis L/ha</th>
-                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Dosis Total (L)</th>
-                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Precio/U ($)</th>
-                <th className="text-right py-4 px-3 font-bold text-[#1F3D2B]">Total ($)</th>
-                <th className="text-center py-4 px-3 font-bold text-[#1F3D2B]">X</th>
+              <tr className="bg-[#1F3D2B] text-white">
+                <th className="text-left py-4 px-4 font-bold">Producto</th>
+                <th className="text-left py-4 px-4 font-bold">Dosis L/ha</th>
+                <th className="text-left py-4 px-4 font-bold">Dosis Total (L)</th>
+                <th className="text-left py-4 px-4 font-bold">Precio/U ($)</th>
+                <th className="text-right py-4 px-4 font-bold">Total ($)</th>
+                <th className="text-center py-4 px-4 font-bold">X</th>
               </tr>
             </thead>
             <tbody>
               {filas.map((f, i) => (
-                <tr key={f.id} className="border-b border-[#D8D2BE] hover:bg-[#FBF9F2]">
-                  <td className="py-3 px-3">
+                <tr key={f.id} className="border-b-2 border-[#D8D2BE] hover:bg-[#FBF9F2]">
+                  <td className="py-4 px-4">
                     <select
                       value={f.producto_id}
                       onChange={(e) => cambiarProducto(f.id, parseInt(e.target.value))}
-                      className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm"
+                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base"
                     >
                       <option value="">Seleccionar...</option>
                       {productos.map(p => (
@@ -291,43 +324,43 @@ export default function RegistroActividad() {
                       ))}
                     </select>
                   </td>
-                  <td className="py-3 px-3">
+                  <td className="py-4 px-4">
                     <input
                       type="number"
                       step="0.01"
                       value={f.dosisLiterPorHa}
                       onChange={(e) => actualizarFila(f.id, 'dosisLiterPorHa', e.target.value)}
                       placeholder="0"
-                      className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm"
+                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base font-medium"
                     />
                   </td>
-                  <td className="py-3 px-3">
+                  <td className="py-4 px-4">
                     <input
                       type="number"
                       step="0.01"
                       value={f.dosisTotal}
                       onChange={(e) => actualizarFila(f.id, 'dosisTotal', e.target.value)}
                       placeholder="0"
-                      className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm bg-[#E8E6E0] font-bold"
+                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base font-bold bg-[#E8E6E0]"
                     />
                   </td>
-                  <td className="py-3 px-3">
+                  <td className="py-4 px-4">
                     <input
                       type="number"
                       value={f.precio_unitario}
                       readOnly
-                      className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm bg-[#E8E6E0] font-bold"
+                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base font-bold bg-[#E8E6E0]"
                     />
                   </td>
-                  <td className="py-3 px-3 text-right font-bold">
+                  <td className="py-4 px-4 text-right font-bold text-lg">
                     ${f.total}
                   </td>
-                  <td className="py-3 px-3 text-center">
+                  <td className="py-4 px-4 text-center">
                     <button
                       onClick={() => quitarFila(f.id)}
-                      className="text-red-600 hover:text-red-800 p-1"
+                      className="text-red-600 hover:text-red-800 p-2"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={20} />
                     </button>
                   </td>
                 </tr>
@@ -338,23 +371,23 @@ export default function RegistroActividad() {
 
         <button
           onClick={agregarFila}
-          className="w-full border-4 border-dashed border-[#1F3D2B] py-4 text-[#1F3D2B] font-bold rounded-lg hover:bg-[#F5F2E6] mb-6"
+          className="w-full border-4 border-dashed border-[#1F3D2B] py-4 text-[#1F3D2B] font-bold text-lg rounded-lg hover:bg-[#F5F2E6] mb-6"
         >
           <Plus size={20} className="inline mr-2" /> Agregar Producto
         </button>
 
-        <div className="bg-[#1F3D2B] text-white p-6 rounded-lg text-right">
-          <div className="text-sm opacity-90">Costo Total</div>
-          <div className="text-4xl font-bold">${totalGeneral.toFixed(2)}</div>
+        <div className="bg-[#1F3D2B] text-white p-8 rounded-lg text-right">
+          <div className="text-lg opacity-90 mb-2">Costo Total de la Actividad</div>
+          <div className="text-5xl font-bold">${totalGeneral.toFixed(2)}</div>
         </div>
       </div>
 
       <button
         onClick={guardar}
-        disabled={guardando || !tipoActividad}
-        className="w-full bg-[#1F3D2B] text-white font-bold text-lg py-4 rounded-lg hover:bg-[#0F2116] disabled:opacity-50"
+        disabled={guardando || !tipoActividad || lotesSeleccionados.length === 0}
+        className="w-full bg-[#1F3D2B] text-white font-bold text-lg py-4 rounded-lg hover:bg-[#0F2116] disabled:opacity-50 transition"
       >
-        {guardando ? '⏳ Guardando...' : '✓ Guardar Actividad'}
+        {guardando ? '⏳ Guardando...' : '✓ Guardar Actividad Completa'}
       </button>
     </div>
   )
