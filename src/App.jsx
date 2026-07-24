@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient'
 import Login from './Login'
 import Dashboard from './Dashboard'
 import RegistroActividad from './RegistroActividad'
-import Configuracion from './Configuracion'
+import GestionDatos from './GestionDatos'
 import ImportarLotes from './ImportarLotes'
 
 export default function App() {
@@ -71,7 +71,7 @@ export default function App() {
                   : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
               }`}
             >
-              ⚙️ Configuración
+              🗂️ Gestion Datos
             </button>
             <button
               onClick={() => setCurrentPage('importar')}
@@ -98,7 +98,7 @@ export default function App() {
 
         <div className="flex-1">
           {currentPage === 'dashboard' && <Dashboard />}
-          {currentPage === 'configuracion' && <Configuracion />}
+          {currentPage === 'gestiondatos' && <GestionDatos />}
           {currentPage === 'importar' && <ImportarLotes />}
           {currentPage === 'registro' && <RegistroActividad />}
         </div>
