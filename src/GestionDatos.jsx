@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+export default function GestionDatos() {
+export default function GestionDatos() {
+export default function GestionDatos() {
+  const [tab, setTab] = useState('fincas')
 
+  console.log('GestionDatos renderizando. Tab:', tab)  // ← AGREGA AQUÍ
+
+  return (
+    <div className="p-8" style={{border: '3px solid red'}}>
+      <h2>Test</h2>
+    </div>
+  )
+}
+    <div className="p-8" style={{border: '3px solid red'}}>
+    <div className="p-8" style={{border: '3px solid red'}}>
 export default function GestionDatos() {
   const [tab, setTab] = useState('fincas')
 
