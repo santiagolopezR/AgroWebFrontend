@@ -82,11 +82,9 @@ export default function RegistroActividad() {
         fila.dosisLiterPorHa = ha > 0 ? (dosis_tot / ha).toFixed(2) : '0'
       }
       
-      if (campo === 'dosisTotal' || campo === 'precio_unitario') {
-        const dosis = parseFloat(fila.dosisTotal) || 0
-        const precio = parseFloat(fila.precio_unitario) || 0
-        fila.total = (dosis * precio).toFixed(2)
-      }
+      const dosis = parseFloat(fila.dosisTotal) || 0
+      const precio = parseFloat(fila.precio_unitario) || 0
+      fila.total = (dosis * precio).toFixed(2)
       
       return fila
     }))
@@ -136,7 +134,6 @@ export default function RegistroActividad() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
-      // 1. Crear la actividad
       const { data: actividad, error: errorActividad } = await supabase
         .from('api_actividad')
         .insert({
@@ -152,7 +149,6 @@ export default function RegistroActividad() {
 
       const actividadId = actividad[0].id
 
-      // 2. Guardar lotes asociados
       const lotesData = lotesSeleccionados.map(loteId => ({
         actividad_id: actividadId,
         lote_id: loteId,
@@ -165,7 +161,6 @@ export default function RegistroActividad() {
 
       if (errorLotes) throw errorLotes
 
-      // 3. Guardar productos asociados
       const productosData = filas
         .filter(f => f.producto_id)
         .map(f => {
