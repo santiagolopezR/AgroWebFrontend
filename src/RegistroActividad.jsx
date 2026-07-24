@@ -40,6 +40,7 @@ export default function RegistroActividad() {
       const { data: lotesData } = await supabase.from('api_lote').select('*')
       const { data: tiposData } = await supabase.from('api_tipoactividad').select('*')
       const { data: productosData } = await supabase.from('api_producto').select('*')
+      
       setLotes(lotesData || [])
       setTiposActividad(tiposData || [])
       setProductos(productosData || [])
@@ -71,18 +72,18 @@ export default function RegistroActividad() {
       
       const fila = { ...f, [campo]: valor }
       
-      if (campo === 'dosisLiterPorHa' || campo === 'dosisTotal') {
-        const dosis_ha = parseFloat(fila.dosisLiterPorHa) || 0
-        const dosis_tot = parseFloat(fila.dosisTotal) || 0
-        const ha = hectareasTotales || 0
-        
-        if (campo === 'dosisLiterPorHa' && ha > 0) {
-          fila.dosisTotal = (dosis_ha * ha).toFixed(2)
-        } else if (campo === 'dosisTotal' && ha > 0) {
-          fila.dosisLiterPorHa = (dosis_tot / ha).toFixed(2)
-        }
+      // Cálculos bidireccionales de dosis
+      if (campo === 'dosisLiterPorHa') {
+        const dosis_ha = parseFloat(valor) || 0
+        const ha = hectareasTotales || 1
+        fila.dosisTotal = (dosis_ha * ha).toFixed(2)
+      } else if (campo === 'dosisTotal') {
+        const dosis_tot = parseFloat(valor) || 0
+        const ha = hectareasTotales || 1
+        fila.dosisLiterPorHa = ha > 0 ? (dosis_tot / ha).toFixed(2) : '0'
       }
       
+      // Calcular total (dosis total * precio)
       if (campo === 'dosisTotal' || campo === 'precio_unitario') {
         const dosis = parseFloat(fila.dosisTotal) || 0
         const precio = parseFloat(fila.precio_unitario) || 0
@@ -134,7 +135,7 @@ export default function RegistroActividad() {
       const { data, error } = await supabase
         .from('api_actividad')
         .insert({
-          tipo_id: parseInt(tipoActividad) || 1,
+          tipo_id: parseInt(tipoActividad),
           fecha,
           responsable,
           observaciones,
@@ -149,6 +150,7 @@ export default function RegistroActividad() {
       setLotesSeleccionados([])
       setTipoActividad('')
       setObservaciones('')
+      setFecha(new Date().toISOString().slice(0, 10))
     } catch (err) {
       alert('Error: ' + err.message)
     } finally {
@@ -165,7 +167,7 @@ export default function RegistroActividad() {
         <p className="text-[#6B5D45]">Fumigación, riego, siembra, etc.</p>
       </div>
 
-      {/* LOTES - Mejorado */}
+      {/* LOTES */}
       <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
         <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">1️⃣ Selecciona Lotes</h3>
         
@@ -183,25 +185,30 @@ export default function RegistroActividad() {
         </div>
 
         <div className="max-h-64 overflow-y-auto border-2 border-[#D8D2BE] rounded-lg p-4 space-y-2 mb-4">
-          {lotesFiltrados.map(lote => (
-            <div key={lote.id} className="flex items-center gap-3 p-2 hover:bg-[#F5F2E6] rounded">
-              <input
-                type="checkbox"
-                id={`lote-${lote.id}`}
-                checked={lotesSeleccionados.includes(lote.id)}
-                onChange={() => toggleLote(lote.id)}
-                className="w-5 h-5 cursor-pointer"
-              />
-              <label htmlFor={`lote-${lote.id}`} className="cursor-pointer flex-1">
-                {lote.nombre} • {lote.superficie}ha
-              </label>
-            </div>
-          ))}
+          {lotesFiltrados.length === 0 ? (
+            <p className="text-[#6B5D45]">No hay lotes</p>
+          ) : (
+            lotesFiltrados.map(lote => (
+              <div key={lote.id} className="flex items-center gap-3 p-2 hover:bg-[#F5F2E6] rounded">
+                <input
+                  type="checkbox"
+                  id={`lote-${lote.id}`}
+                  checked={lotesSeleccionados.includes(lote.id)}
+                  onChange={() => toggleLote(lote.id)}
+                  className="w-5 h-5 cursor-pointer"
+                />
+                <label htmlFor={`lote-${lote.id}`} className="cursor-pointer flex-1">
+                  <span className="font-medium">{lote.nombre}</span>
+                  <span className="ml-2 text-sm text-[#6B5D45]">({lote.superficie} ha)</span>
+                </label>
+              </div>
+            ))
+          )}
         </div>
 
         {hectareasTotales > 0 && (
           <div className="bg-[#1F3D2B] text-white p-4 rounded-lg font-bold text-lg">
-            📊 Total: {hectareasTotales}ha
+            📊 Total: {hectareasTotales} ha
           </div>
         )}
       </div>
@@ -217,7 +224,7 @@ export default function RegistroActividad() {
               onChange={(e) => setTipoActividad(e.target.value)}
               className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
             >
-              <option value="">Seleccionar...</option>
+              <option value="">Seleccionar tipo...</option>
               {tiposActividad.map(t => (
                 <option key={t.id} value={t.id}>{t.nombre}</option>
               ))}
@@ -238,7 +245,6 @@ export default function RegistroActividad() {
               type="text"
               value={responsable}
               onChange={(e) => setResponsable(e.target.value)}
-              placeholder="Nombre del operario"
               className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
             />
           </div>
@@ -248,33 +254,32 @@ export default function RegistroActividad() {
               type="text"
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Notas adicionales"
               className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
             />
           </div>
         </div>
       </div>
 
-      {/* PRODUCTOS - Tabla mejorada */}
+      {/* PRODUCTOS - Tabla */}
       <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
         <h3 className="text-xl font-bold text-[#1F3D2B] mb-6">3️⃣ Productos Aplicados</h3>
         
         <div className="overflow-x-auto mb-6">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b-2 border-[#1F3D2B]">
-                <th className="text-left py-3 px-2 font-bold text-[#1F3D2B]">Producto</th>
-                <th className="text-left py-3 px-2 font-bold text-[#1F3D2B]">Dosis L/ha</th>
-                <th className="text-left py-3 px-2 font-bold text-[#1F3D2B]">Dosis Total (L)</th>
-                <th className="text-left py-3 px-2 font-bold text-[#1F3D2B]">Precio/U</th>
-                <th className="text-left py-3 px-2 font-bold text-[#1F3D2B]">Total ($)</th>
-                <th className="text-center py-3 px-2 font-bold text-[#1F3D2B]">Acción</th>
+              <tr className="border-b-4 border-[#1F3D2B] bg-[#F5F2E6]">
+                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Producto</th>
+                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Dosis L/ha</th>
+                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Dosis Total (L)</th>
+                <th className="text-left py-4 px-3 font-bold text-[#1F3D2B]">Precio/U ($)</th>
+                <th className="text-right py-4 px-3 font-bold text-[#1F3D2B]">Total ($)</th>
+                <th className="text-center py-4 px-3 font-bold text-[#1F3D2B]">X</th>
               </tr>
             </thead>
             <tbody>
               {filas.map((f, i) => (
-                <tr key={f.id} className="border-b border-[#D8D2BE] hover:bg-[#F5F2E6]">
-                  <td className="py-3 px-2">
+                <tr key={f.id} className="border-b border-[#D8D2BE] hover:bg-[#FBF9F2]">
+                  <td className="py-3 px-3">
                     <select
                       value={f.producto_id}
                       onChange={(e) => cambiarProducto(f.id, parseInt(e.target.value))}
@@ -286,40 +291,41 @@ export default function RegistroActividad() {
                       ))}
                     </select>
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="py-3 px-3">
                     <input
                       type="number"
-                      step="0.1"
+                      step="0.01"
                       value={f.dosisLiterPorHa}
                       onChange={(e) => actualizarFila(f.id, 'dosisLiterPorHa', e.target.value)}
                       placeholder="0"
                       className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="py-3 px-3">
                     <input
                       type="number"
+                      step="0.01"
                       value={f.dosisTotal}
                       onChange={(e) => actualizarFila(f.id, 'dosisTotal', e.target.value)}
                       placeholder="0"
                       className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm bg-[#E8E6E0] font-bold"
                     />
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="py-3 px-3">
                     <input
                       type="number"
                       value={f.precio_unitario}
                       readOnly
-                      className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm bg-[#E8E6E0]"
+                      className="w-full px-2 py-2 border-2 border-[#D8D2BE] rounded text-sm bg-[#E8E6E0] font-bold"
                     />
                   </td>
-                  <td className="py-3 px-2 font-bold">
+                  <td className="py-3 px-3 text-right font-bold">
                     ${f.total}
                   </td>
-                  <td className="py-3 px-2 text-center">
+                  <td className="py-3 px-3 text-center">
                     <button
                       onClick={() => quitarFila(f.id)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-800 p-1"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -332,7 +338,7 @@ export default function RegistroActividad() {
 
         <button
           onClick={agregarFila}
-          className="w-full border-4 border-dashed border-[#1F3D2B] py-4 text-[#1F3D2B] font-bold text-lg rounded-lg hover:bg-[#F5F2E6] mb-6"
+          className="w-full border-4 border-dashed border-[#1F3D2B] py-4 text-[#1F3D2B] font-bold rounded-lg hover:bg-[#F5F2E6] mb-6"
         >
           <Plus size={20} className="inline mr-2" /> Agregar Producto
         </button>
@@ -345,7 +351,7 @@ export default function RegistroActividad() {
 
       <button
         onClick={guardar}
-        disabled={guardando}
+        disabled={guardando || !tipoActividad}
         className="w-full bg-[#1F3D2B] text-white font-bold text-lg py-4 rounded-lg hover:bg-[#0F2116] disabled:opacity-50"
       >
         {guardando ? '⏳ Guardando...' : '✓ Guardar Actividad'}
