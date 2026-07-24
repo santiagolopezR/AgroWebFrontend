@@ -6,12 +6,14 @@ export default function GestionDatos() {
   const [user, setUser] = useState(null)
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getSession()
-      setUser(data.session?.user)
-    }
-    getUser()
-  }, [])
+  const getUser = async () => {
+    const { data } = await supabase.auth.getSession()
+    const currentUser = data.session?.user
+    setUser(currentUser)
+    console.log('GestionDatos - User:', currentUser)
+  }
+  getUser()
+}, [])
 
   return (
     <div className="p-8 max-w-6xl">
