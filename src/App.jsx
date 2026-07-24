@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient'
 import Login from './Login'
 import RegistroActividad from './RegistroActividad'
 import Configuracion from './Configuracion'
+import ImportarLotes from './ImportarLotes'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -72,6 +73,16 @@ export default function App() {
               ⚙️ Configuración
             </button>
             <button
+              onClick={() => setCurrentPage('importar')}
+              className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
+                currentPage === 'importar'
+                  ? 'bg-[#1F3D2B] text-white'
+                  : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
+              }`}
+            >
+              📥 Importar Lotes
+            </button>
+            <button
               onClick={() => setCurrentPage('registro')}
               className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
                 currentPage === 'registro'
@@ -93,6 +104,7 @@ export default function App() {
           )}
 
           {currentPage === 'configuracion' && <Configuracion />}
+          {currentPage === 'importar' && <ImportarLotes />}
           {currentPage === 'registro' && <RegistroActividad />}
         </div>
       </div>
