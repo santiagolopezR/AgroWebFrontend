@@ -94,16 +94,22 @@ export default function RegistroActividad() {
 
   const cambiarProducto = (id, productoId) => {
     const producto = productos.find(p => p.id === productoId)
-    setFilas(prev => prev.map(f =>
-      f.id === id 
-        ? { 
-            ...f, 
-            producto_id: productoId, 
-            producto: producto?.nombre || '',
-            precio_unitario: producto?.precio_actual || ''
-          }
-        : f
-    ))
+    setFilas(prev => prev.map(f => {
+      if (f.id !== id) return f
+      
+      const fila = {
+        ...f,
+        producto_id: productoId,
+        producto: producto?.nombre || '',
+        precio_unitario: producto?.precio_actual || 0
+      }
+      
+      const dosis = parseFloat(fila.dosisTotal) || 0
+      const precio = parseFloat(fila.precio_unitario) || 0
+      fila.total = (dosis * precio).toFixed(2)
+      
+      return fila
+    }))
   }
 
   const agregarFila = () => {
@@ -162,13 +168,19 @@ export default function RegistroActividad() {
       // 3. Guardar productos asociados
       const productosData = filas
         .filter(f => f.producto_id)
-        .map(f => ({
-          actividad_id: actividadId,
-          producto_id: parseInt(f.producto_id),
-          cantidad: parseFloat(f.dosisTotal) || 0,
-          precio_unitario: parseFloat(f.precio_unitario) || 0,
-          total: parseFloat(f.total) || 0,
-        }))
+        .map(f => {
+          const cantidad = parseFloat(f.dosisTotal) || 0
+          const precio = parseFloat(f.precio_unitario) || 0
+          const total = cantidad * precio
+          
+          return {
+            actividad_id: actividadId,
+            producto_id: parseInt(f.producto_id),
+            cantidad: cantidad,
+            precio_unitario: precio,
+            total: total,
+          }
+        })
 
       if (productosData.length > 0) {
         const { error: errorProductos } = await supabase
