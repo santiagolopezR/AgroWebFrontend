@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import Login from './Login'
+import Dashboard from './Dashboard'
 import RegistroActividad from './RegistroActividad'
 import Configuracion from './Configuracion'
 import ImportarLotes from './ImportarLotes'
@@ -96,13 +97,7 @@ export default function App() {
         </div>
 
         <div className="flex-1">
-          {currentPage === 'dashboard' && (
-            <div className="p-8">
-              <h2 className="text-3xl font-bold text-[#1F3D2B] mb-4">Dashboard</h2>
-              <p className="text-[#6B5D45] text-lg">Resumen de actividades (próximamente)</p>
-            </div>
-          )}
-
+          {currentPage === 'dashboard' && <Dashboard />}
           {currentPage === 'configuracion' && <Configuracion />}
           {currentPage === 'importar' && <ImportarLotes />}
           {currentPage === 'registro' && <RegistroActividad />}
