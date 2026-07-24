@@ -64,7 +64,7 @@ export default function App() {
               📊 Dashboard
             </button>
             <button
-              onClick={() => setCurrentPage('configuracion')}
+              onClick={() => setCurrentPage('gestiondatos')}
               className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
                 currentPage === 'configuracion'
                   ? 'bg-[#1F3D2B] text-white'
