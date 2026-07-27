@@ -146,9 +146,7 @@ function Cultivos() {
   }, [])
 
   const fetch = async () => {
-    const { data } = await supabase.from('api_cultivocatalogo').select('*')
-    setItems(data || [])
-  }
+    const { data } = await supabase.from('api_cultivocatalogo').select('id, nombre')
 
   const create = async (e) => {
     e.preventDefault()
