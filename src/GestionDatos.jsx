@@ -11,7 +11,7 @@ export default function GestionDatos() {
       <div className="flex gap-2 mb-8 border-b-2 border-[#D8D2BE] overflow-x-auto">
         <button onClick={() => setTab('fincas')} className={`px-6 py-3 font-bold ${tab === 'fincas' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏞️ Fincas</button>
         <button onClick={() => setTab('lotes')} className={`px-6 py-3 font-bold ${tab === 'lotes' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>📍 Lotes</button>
-        <button onClick={() => setTab('categorias')} className={`px-6 py-3 font-bold ${tab === 'categorias' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏷️ Categorías</button>
+        <button onClick={() => setTab('cultivos')} className={`px-6 py-3 font-bold ${tab === 'cultivos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🌾 Cultivos</button>
         <button onClick={() => setTab('productos')} className={`px-6 py-3 font-bold ${tab === 'productos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>📦 Productos</button>
         <button onClick={() => setTab('proveedores')} className={`px-6 py-3 font-bold ${tab === 'proveedores' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>👥 Proveedores</button>
         <button onClick={() => setTab('tipos')} className={`px-6 py-3 font-bold ${tab === 'tipos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>💼 Tipos Costo</button>
@@ -19,7 +19,7 @@ export default function GestionDatos() {
 
       {tab === 'fincas' && <Fincas />}
       {tab === 'lotes' && <Lotes />}
-      {tab === 'categorias' && <Categorias />}
+      {tab === 'cultivos' && <Cultivos />}
       {tab === 'productos' && <Productos />}
       {tab === 'proveedores' && <Proveedores />}
       {tab === 'tipos' && <Tipos />}
@@ -134,32 +134,22 @@ function Lotes() {
   )
 }
 
-function Categorias() {
+function Cultivos() {
   const [items, setItems] = useState([])
   const [nombre, setNombre] = useState('')
-  const [userId, setUserId] = useState(null)
 
   useEffect(() => {
-    getUser()
+    fetch()
   }, [])
 
-  const getUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    setUserId(session?.user?.id)
-  }
-
-  useEffect(() => {
-    if (userId) fetch()
-  }, [userId])
-
   const fetch = async () => {
-    const { data } = await supabase.from('api_categoria').select('*').eq('user_id', userId)
+    const { data } = await supabase.from('api_cultivocatalogo').select('id, nombre')
     setItems(data || [])
   }
 
   const create = async (e) => {
     e.preventDefault()
-    await supabase.from('api_categoria').insert([{ nombre, user_id: userId }])
+    await supabase.from('api_cultivocatalogo').insert([{ nombre }])
     setNombre('')
     fetch()
   }
@@ -167,7 +157,7 @@ function Categorias() {
   return (
     <div className="space-y-6">
       <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <input type="text" placeholder="Nombre categoría" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
+        <input type="text" placeholder="Nombre cultivo" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
         <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
       </form>
       <div className="space-y-2">
@@ -178,13 +168,14 @@ function Categorias() {
 }
 
 function Productos() {
-  const [items, setItems] = useState([])
+  const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
   const [nombre, setNombre] = useState('')
   const [catId, setCatId] = useState('')
   const [unidad, setUnidad] = useState('')
   const [precio, setPrecio] = useState('')
   const [userId, setUserId] = useState(null)
+  const [catNombre, setCatNombre] = useState('')
 
   useEffect(() => {
     getUser()
@@ -204,7 +195,7 @@ function Productos() {
 
   const fetch = async () => {
     const { data } = await supabase.from('api_producto').select('*').eq('user_id', userId)
-    setItems(data || [])
+    setProductos(data || [])
   }
 
   const fetchCat = async () => {
@@ -212,7 +203,7 @@ function Productos() {
     setCategorias(data || [])
   }
 
-  const create = async (e) => {
+  const createProduct = async (e) => {
     e.preventDefault()
     await supabase.from('api_producto').insert([{ nombre, categoria_id: catId ? parseInt(catId) : null, unidad, precio_actual: parseFloat(precio), user_id: userId }])
     setNombre('')
@@ -222,20 +213,38 @@ function Productos() {
     fetch()
   }
 
+  const createCategory = async (e) => {
+    e.preventDefault()
+    await supabase.from('api_categoria').insert([{ nombre: catNombre, user_id: userId }])
+    setCatNombre('')
+    fetchCat()
+  }
+
   return (
     <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <input type="text" placeholder="Nombre producto" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <select value={catId} onChange={(e) => setCatId(e.target.value)} className="w-full p-3 border rounded mb-4">
-          <option value="">Selecciona Categoría</option>
-          {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
-        <input type="text" placeholder="Unidad" value={unidad} onChange={(e) => setUnidad(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <input type="number" step="0.01" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
-      </form>
+      <div className="grid grid-cols-2 gap-6">
+        <form onSubmit={createCategory} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="font-bold mb-4">Crear Categoría</h3>
+          <input type="text" placeholder="Nombre categoría" value={catNombre} onChange={(e) => setCatNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
+          <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold w-full">➕ Crear Categoría</button>
+        </form>
+
+        <form onSubmit={createProduct} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="font-bold mb-4">Crear Producto</h3>
+          <input type="text" placeholder="Nombre producto" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-2" required />
+          <select value={catId} onChange={(e) => setCatId(e.target.value)} className="w-full p-3 border rounded mb-2">
+            <option value="">Categoría (opcional)</option>
+            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </select>
+          <input type="text" placeholder="Unidad" value={unidad} onChange={(e) => setUnidad(e.target.value)} className="w-full p-3 border rounded mb-2" required />
+          <input type="number" step="0.01" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className="w-full p-3 border rounded mb-4" required />
+          <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold w-full">➕ Crear Producto</button>
+        </form>
+      </div>
+
       <div className="space-y-2">
-        {items.map(p => <div key={p.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{p.nombre}</p><p className="text-sm text-[#6B5D45]">${p.precio_actual}/{p.unidad}</p></div>)}
+        <h3 className="font-bold text-lg">Productos</h3>
+        {productos.map(p => <div key={p.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{p.nombre}</p><p className="text-sm text-[#6B5D45]">${p.precio_actual}/{p.unidad}</p></div>)}
       </div>
     </div>
   )
