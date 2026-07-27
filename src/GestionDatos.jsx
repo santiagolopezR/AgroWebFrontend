@@ -11,7 +11,6 @@ export default function GestionDatos() {
       <div className="flex gap-2 mb-8 border-b-2 border-[#D8D2BE] overflow-x-auto">
         <button onClick={() => setTab('fincas')} className={`px-6 py-3 font-bold ${tab === 'fincas' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏞️ Fincas</button>
         <button onClick={() => setTab('lotes')} className={`px-6 py-3 font-bold ${tab === 'lotes' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>📍 Lotes</button>
-        <button onClick={() => setTab('cultivos')} className={`px-6 py-3 font-bold ${tab === 'cultivos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🌾 Cultivos</button>
         <button onClick={() => setTab('categorias')} className={`px-6 py-3 font-bold ${tab === 'categorias' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏷️ Categorías</button>
         <button onClick={() => setTab('productos')} className={`px-6 py-3 font-bold ${tab === 'productos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>📦 Productos</button>
         <button onClick={() => setTab('proveedores')} className={`px-6 py-3 font-bold ${tab === 'proveedores' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>👥 Proveedores</button>
@@ -20,7 +19,6 @@ export default function GestionDatos() {
 
       {tab === 'fincas' && <Fincas />}
       {tab === 'lotes' && <Lotes />}
-      {tab === 'cultivos' && <Cultivos />}
       {tab === 'categorias' && <Categorias />}
       {tab === 'productos' && <Productos />}
       {tab === 'proveedores' && <Proveedores />}
@@ -66,7 +64,7 @@ function Fincas() {
       <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
         <input type="text" placeholder="Nombre finca" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
         <input type="text" placeholder="Ubicación" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Finca</button>
+        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
       </form>
       <div className="space-y-2">
         {items.map(f => <div key={f.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{f.nombre}</p><p className="text-sm text-[#6B5D45]">{f.ubicacion}</p></div>)}
@@ -127,44 +125,10 @@ function Lotes() {
         </select>
         <input type="text" placeholder="Nombre lote" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
         <input type="number" step="0.1" placeholder="Superficie (ha)" value={superficie} onChange={(e) => setSuperficie(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Lote</button>
+        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
       </form>
       <div className="space-y-2">
         {items.map(l => <div key={l.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{l.nombre}</p><p className="text-sm text-[#6B5D45]">{l.superficie} ha</p></div>)}
-      </div>
-    </div>
-  )
-}
-
-function Cultivos() {
-  const [items, setItems] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [ciclo, setCiclo] = useState('')
-
-  useEffect(() => {
-    fetch()
-  }, [])
-
-  const fetch = async () => {
-    const { data } = await supabase.from('api_cultivocatalogo').select('id, nombre')
-
-  const create = async (e) => {
-    e.preventDefault()
-    await supabase.from('api_cultivocatalogo').insert([{ nombre, ciclo_dias: ciclo ? parseInt(ciclo) : null }])
-    setNombre('')
-    setCiclo('')
-    fetch()
-  }
-
-  return (
-    <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <input type="text" placeholder="Nombre cultivo" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <input type="number" placeholder="Ciclo (días)" value={ciclo} onChange={(e) => setCiclo(e.target.value)} className="w-full p-3 border rounded mb-4" />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Cultivo</button>
-      </form>
-      <div className="space-y-2">
-        {items.map(c => <div key={c.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{c.nombre}</p></div>)}
       </div>
     </div>
   )
@@ -204,7 +168,7 @@ function Categorias() {
     <div className="space-y-6">
       <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
         <input type="text" placeholder="Nombre categoría" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Categoría</button>
+        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
       </form>
       <div className="space-y-2">
         {items.map(c => <div key={c.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{c.nombre}</p></div>)}
@@ -268,7 +232,7 @@ function Productos() {
         </select>
         <input type="text" placeholder="Unidad" value={unidad} onChange={(e) => setUnidad(e.target.value)} className="w-full p-3 border rounded mb-4" required />
         <input type="number" step="0.01" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Producto</button>
+        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
       </form>
       <div className="space-y-2">
         {items.map(p => <div key={p.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{p.nombre}</p><p className="text-sm text-[#6B5D45]">${p.precio_actual}/{p.unidad}</p></div>)}
@@ -317,7 +281,7 @@ function Proveedores() {
         <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
         <input type="text" placeholder="Contacto" value={contacto} onChange={(e) => setContacto(e.target.value)} className="w-full p-3 border rounded mb-4" />
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 border rounded mb-4" />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Proveedor</button>
+        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
       </form>
       <div className="space-y-2">
         {items.map(p => <div key={p.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{p.nombre}</p><p className="text-sm text-[#6B5D45]">{p.email}</p></div>)}
@@ -350,7 +314,7 @@ function Tipos() {
     <div className="space-y-6">
       <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
         <input type="text" placeholder="Nombre tipo" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Tipo</button>
+        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear</button>
       </form>
       <div className="space-y-2">
         {items.map(t => <div key={t.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{t.nombre}</p></div>)}
