@@ -5,6 +5,7 @@ import Dashboard from './Dashboard'
 import RegistroActividad from './RegistroActividad'
 import GestionDatos from './GestionDatos'
 import ImportarLotes from './ImportarLotes'
+import Zafras from './Zafras'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -74,12 +75,23 @@ export default function App() {
               🗂️ Gestion Datos
             </button>
             <button
+              onClick={() => setCurrentPage('zafras')}
+              className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
+                currentPage === 'zafras'
+                  ? 'bg-[#1F3D2B] text-white'
+                  : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
+              }`}
+            >
+              🌾 Zafras
+            </button>
+            <button
               onClick={() => setCurrentPage('importar')}
               className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
                 currentPage === 'importar'
                   ? 'bg-[#1F3D2B] text-white'
                   : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
               }`}
+              
             >
               📥 Importar Lotes
             </button>
@@ -98,9 +110,10 @@ export default function App() {
 
         <div className="flex-1">
           {currentPage === 'dashboard' && <Dashboard />}
-          {currentPage === 'gestiondatos' && <GestionDatos />}
-          {currentPage === 'importar' && <ImportarLotes />}
-          {currentPage === 'registro' && <RegistroActividad />}
+{currentPage === 'gestiondatos' && <GestionDatos />}
+{currentPage === 'zafras' && <Zafras />}
+{currentPage === 'importar' && <ImportarLotes />}
+{currentPage === 'registro' && <RegistroActividad />}
         </div>
       </div>
     </div>
