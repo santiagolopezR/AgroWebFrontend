@@ -55,6 +55,8 @@ export default function Zafras() {
 
   const fetchCultivos = async () => {
     const { data } = await supabase.from('api_cultivocatalogo').select('id, nombre')
+    setCultivos(data || [])
+  }
 
   const fetchZafras = async () => {
     const { data } = await supabase.from('api_zafra').select('*').eq('lote_id', parseInt(loteSeleccionado))
