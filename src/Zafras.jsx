@@ -71,9 +71,14 @@ export default function Zafras() {
       return
     }
 
+    if (!user) {
+      alert('Esperando autenticación...')
+      return
+    }
+
     const numeroZafra = zafras.length + 1
 
-    await supabase.from('api_zafra').insert([{
+    const { error } = await supabase.from('api_zafra').insert([{
       lote_id: parseInt(loteSeleccionado),
       numero_zafra: numeroZafra,
       cultivo_id: parseInt(cultivo),
@@ -82,6 +87,12 @@ export default function Zafras() {
       estado: estado,
       user_id: user
     }])
+
+    if (error) {
+      console.error('Error:', error)
+      alert('Error: ' + error.message)
+      return
+    }
 
     setCultivo('')
     setFechaInicio('')
