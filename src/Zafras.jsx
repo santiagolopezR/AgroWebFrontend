@@ -2,16 +2,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 
 export default function Zafras() {
+  const [fincas, setFincas] = useState([])
   const [lotes, setLotes] = useState([])
   const [cultivos, setCultivos] = useState([])
   const [zafras, setZafras] = useState([])
   const [user, setUser] = useState(null)
   
+  const [fincaSeleccionada, setFincaSeleccionada] = useState('')
   const [loteSeleccionado, setLoteSeleccionado] = useState('')
   const [cultivo, setCultivo] = useState('')
   const [fechaInicio, setFechaInicio] = useState('')
-  const [fechaFin, setFechaFin] = useState('')
-  const [hectareasSembradas, setHectareasSembradas] = useState('')
   const [estado, setEstado] = useState('prep')
 
   useEffect(() => {
@@ -25,10 +25,16 @@ export default function Zafras() {
 
   useEffect(() => {
     if (user) {
-      fetchLotes()
+      fetchFincas()
       fetchCultivos()
     }
   }, [user])
+
+  useEffect(() => {
+    if (fincaSeleccionada) {
+      fetchLotes()
+    }
+  }, [fincaSeleccionada])
 
   useEffect(() => {
     if (loteSeleccionado) {
@@ -36,9 +42,15 @@ export default function Zafras() {
     }
   }, [loteSeleccionado])
 
+  const fetchFincas = async () => {
+    const { data } = await supabase.from('api_finca').select('*').eq('user_id', user)
+    setFincas(data || [])
+  }
+
   const fetchLotes = async () => {
-    const { data } = await supabase.from('api_lote').select('*').eq('user_id', user)
+    const { data } = await supabase.from('api_lote').select('*').eq('finca_id', parseInt(fincaSeleccionada))
     setLotes(data || [])
+    setLoteSeleccionado('')
   }
 
   const fetchCultivos = async () => {
@@ -51,27 +63,11 @@ export default function Zafras() {
     setZafras(data || [])
   }
 
-  const getLoteInfo = () => {
-    return lotes.find(l => l.id === parseInt(loteSeleccionado))
-  }
-
-  const handleChangeLote = (e) => {
-    const loteId = e.target.value
-    setLoteSeleccionado(loteId)
-    
-    if (loteId) {
-      const loteInfo = lotes.find(l => l.id === parseInt(loteId))
-      if (loteInfo) {
-        setHectareasSembradas(loteInfo.superficie)
-      }
-    }
-  }
-
   const handleCreateZafra = async (e) => {
     e.preventDefault()
     
-    if (!loteSeleccionado || !cultivo || !fechaInicio || !fechaFin) {
-      alert('Completa todos los campos')
+    if (!loteSeleccionado || !cultivo || !fechaInicio) {
+      alert('Completa Lote, Cultivo y Fecha Inicio')
       return
     }
 
@@ -82,16 +78,14 @@ export default function Zafras() {
       numero_zafra: numeroZafra,
       cultivo_id: parseInt(cultivo),
       fecha_inicio: fechaInicio,
-      fecha_fin: fechaFin,
+      fecha_fin: null,
       estado: estado,
       user_id: user
     }])
 
     setCultivo('')
     setFechaInicio('')
-    setFechaFin('')
     setEstado('prep')
-    setHectareasSembradas(getLoteInfo()?.superficie || '')
     fetchZafras()
   }
 
@@ -108,22 +102,43 @@ export default function Zafras() {
 
   return (
     <div className="p-8 max-w-6xl">
-      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">🌾 Gestión de Zafras</h2>
+      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-4">🌾 Gestión de Zafras</h2>
+      
+      <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#1F3D2B] mb-8">
+        <p className="text-[#1F3D2B] font-bold">¿QUÉ ES UNA ZAFRA?</p>
+        <p className="text-[#6B5D45] text-sm">Ciclo completo de un cultivo. Sirve para rastrear TODOS LOS GASTOS de ese cultivo en ese lote.</p>
+        <p className="text-[#6B5D45] text-sm mt-2">Ejemplo: Maíz del 15 dic → 30 abr. Todos los costos van aquí.</p>
+      </div>
 
-      <div className="mb-8 bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <label className="block font-bold text-lg mb-2">Selecciona Lote:</label>
-        <select
-          value={loteSeleccionado}
-          onChange={handleChangeLote}
-          className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
-        >
-          <option value="">-- Selecciona un Lote --</option>
-          {lotes.map(l => (
-            <option key={l.id} value={l.id}>
-              {l.nombre} ({l.superficie} ha)
-            </option>
-          ))}
-        </select>
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
+          <label className="block font-bold mb-2">Selecciona Finca:</label>
+          <select
+            value={fincaSeleccionada}
+            onChange={(e) => setFincaSeleccionada(e.target.value)}
+            className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg"
+          >
+            <option value="">-- Selecciona Finca --</option>
+            {fincas.map(f => (
+              <option key={f.id} value={f.id}>{f.nombre}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
+          <label className="block font-bold mb-2">Selecciona Lote:</label>
+          <select
+            value={loteSeleccionado}
+            onChange={(e) => setLoteSeleccionado(e.target.value)}
+            className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg"
+            disabled={!fincaSeleccionada}
+          >
+            <option value="">-- Selecciona Lote --</option>
+            {lotes.map(l => (
+              <option key={l.id} value={l.id}>{l.nombre} ({l.superficie} ha)</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loteSeleccionado && (
@@ -163,43 +178,16 @@ export default function Zafras() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block font-bold mb-2">Fecha Inicio:</label>
-                <input
-                  type="date"
-                  value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                  className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold mb-2">Fecha Fin:</label>
-                <input
-                  type="date"
-                  value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg"
-                  required
-                />
-              </div>
-            </div>
-
             <div className="mb-6">
-              <label className="block font-bold mb-2">Hectáreas a Sembrar:</label>
+              <label className="block font-bold mb-2">Fecha de Inicio (Siembra):</label>
               <input
-                type="number"
-                step="0.1"
-                value={hectareasSembradas}
-                onChange={(e) => setHectareasSembradas(e.target.value)}
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
                 className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg"
-                placeholder="Auto-llena con el total del lote"
+                required
               />
-              <p className="text-sm text-[#6B5D45] mt-2">
-                Total del lote: {getLoteInfo()?.superficie} ha
-              </p>
+              <p className="text-sm text-[#6B5D45] mt-2">La fecha de fin se actualiza automáticamente cuando registres la cosecha</p>
             </div>
 
             <button
@@ -220,10 +208,9 @@ export default function Zafras() {
                   <div key={z.id} className={`p-4 rounded-lg border-2 border-[#1F3D2B] ${getEstadoColor(z.estado)}`}>
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-bold text-lg">Zafra {z.numero_zafra}</p>
-                        <p className="text-sm text-[#6B5D45]">Cultivo: {cultivos.find(c => c.id === z.cultivo_id)?.nombre}</p>
-                        <p className="text-sm text-[#6B5D45]">{z.fecha_inicio} → {z.fecha_fin}</p>
-                        <p className="text-sm text-[#6B5D45]">Hectáreas: {z.hectareas_sembradas || 'N/A'} ha</p>
+                        <p className="font-bold text-lg">Zafra {z.numero_zafra} - {cultivos.find(c => c.id === z.cultivo_id)?.nombre}</p>
+                        <p className="text-sm text-[#6B5D45]">Inicio: {z.fecha_inicio}</p>
+                        {z.fecha_fin && <p className="text-sm text-[#6B5D45]">Fin: {z.fecha_fin}</p>}
                       </div>
                       <span className="font-bold text-white bg-[#1F3D2B] px-4 py-2 rounded">
                         {z.estado}
