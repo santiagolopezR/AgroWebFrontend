@@ -7,6 +7,7 @@ export default function RegistroActividad() {
   const [maquinarias, setMaquinarias] = useState([])
   const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
+  const [tiposActividad, setTiposActividad] = useState([])
   
   const [loteId, setLoteId] = useState('')
   const [fecha, setFecha] = useState('')
@@ -21,6 +22,7 @@ export default function RegistroActividad() {
   const [siebraProductos, setSiebraProductos] = useState([])
   const [siebraMO, setSiebraMO] = useState('')
   const [siebraMaquinaria, setSiebraMaquinaria] = useState('')
+  const [siebraObservaciones, setSiebraObservaciones] = useState('')
   
   // Cosecha
   const [cosechaRendimiento, setCosechaRendimiento] = useState('')
@@ -28,13 +30,16 @@ export default function RegistroActividad() {
   const [cosechaTransporte, setCosechaTransporte] = useState('')
   const [cosechaMO, setCosechaMO] = useState('')
   const [cosechaMaquinaria, setCosechaMaquinaria] = useState('')
+  const [cosechaObservaciones, setCosechaObservaciones] = useState('')
   
-  // Genérico (Fumigación, Fertilización, etc)
+  // Genérico
   const [genericoProductos, setGenericoProductos] = useState([])
   const [genericoMaquinaria, setGenericoMaquinaria] = useState('')
   const [genericoCombustible, setGenericoCombustible] = useState('')
   const [genericoMO, setGenericoMO] = useState('')
   const [genericoCostos, setGenericoCostos] = useState([])
+  const [genericoObservaciones, setGenericoObservaciones] = useState('')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     getUser()
@@ -51,6 +56,7 @@ export default function RegistroActividad() {
       fetchMaquinarias()
       fetchProductos()
       fetchCategorias()
+      fetchTiposActividad()
     }
   }, [user])
 
@@ -81,6 +87,16 @@ export default function RegistroActividad() {
       }
     })
     setCategorias(unique)
+  }
+
+  const fetchTiposActividad = async () => {
+    const { data } = await supabase.from('api_tipoactividad').select('*')
+    setTiposActividad(data || [])
+  }
+
+  const getTipoActividadId = (nombre) => {
+    const tipo = tiposActividad.find(t => t.nombre.toLowerCase() === nombre.toLowerCase())
+    return tipo?.id || null
   }
 
   const handleLoteChange = (newLoteId) => {
@@ -147,11 +163,134 @@ export default function RegistroActividad() {
       return
     }
 
+    setLoading(true)
+
     try {
-      // Aquí irá la lógica de guardado según el tipo de actividad
-      alert('✅ Actividad registrada (en desarrollo)')
+      let totalMO = 0
+      let totalMaquina = 0
+      let totalCombustible = 0
+      let totalCostos = 0
+      let tipoActividadId = null
+      let observaciones = ''
+      let tipoMaquina = ''
+      let cantidadCombustible = 0
+      let horasMaquina = 0
+
+      if (tipoActividad === 'siembra') {
+        tipoActividadId = getTipoActividadId('Siembra')
+        totalMO = parseFloat(siebraMO || 0) * 50000 // Asume $50k por jornal
+        tipoMaquina = siebraMaquinaria ? 'Tractor' : ''
+        horasMaquina = siebraMaquinaria ? 2 : 0
+        totalMaquina = horasMaquina * 80000 // Asume $80k por hora
+        observaciones = `Semilla: ${siebraSemilla}, Distancia: ${siebraDistancia}cm, Profundidad: ${siebraProfundidad}cm. ${siebraObservaciones}`
+      } else if (tipoActividad === 'cosecha') {
+        tipoActividadId = getTipoActividadId('Cosecha')
+        totalMO = parseFloat(cosechaMO || 0) * 50000
+        tipoMaquina = cosechaMaquinaria ? 'Cosechadora' : ''
+        horasMaquina = cosechaMaquinaria ? 3 : 0
+        totalMaquina = horasMaquina * 120000
+        observaciones = `Rendimiento: ${cosechaRendimiento}kg, Precio: $${cosechaPrecio}/kg, Transporte: ${cosechaTransporte}km. ${cosechaObservaciones}`
+      } else {
+        // Genérico: Fumigación, Fertilización, Riego, Arar, Desmalezar, Otro
+        const mapeoTipos = {
+          'fumigacion': 'Fumigación',
+          'fertilizacion': 'Fertilización',
+          'riego': 'Riego',
+          'arar': 'Arar',
+          'desmalezar': 'Desmalezar',
+          'otro': 'Otro'
+        }
+        tipoActividadId = getTipoActividadId(mapeoTipos[tipoActividad])
+        totalMO = parseFloat(genericoMO || 0) * 50000
+        cantidadCombustible = parseFloat(genericoCombustible || 0)
+        totalCombustible = cantidadCombustible * 8000 // Asume $8k por litro
+        totalCostos = genericoCostos.reduce((sum, c) => sum + (parseFloat(c.valor) || 0), 0)
+        tipoMaquina = genericoMaquinaria ? 'Pulverizador' : ''
+        observaciones = genericoObservaciones
+      }
+
+      const costo_total = totalMO + totalMaquina + totalCombustible + totalCostos
+
+      const { data: actividad, error: errorActividad } = await supabase
+        .from('api_actividad')
+        .insert([{
+          fecha: fecha,
+          responsable: 'Usuario',
+          observaciones: observaciones,
+          tipo_id: tipoActividadId,
+          user_id: user,
+          zafra_id: parseInt(zafraId),
+          horas_trabajo: tipoActividad === 'siembra' ? 8 : tipoActividad === 'cosecha' ? 12 : 6,
+          valor_jornal: 50000,
+          total_mano_obra: totalMO,
+          tipo_maquina: tipoMaquina,
+          horas_maquina: horasMaquina,
+          valor_hora_maquina: tipoMaquina ? 80000 : 0,
+          total_maquina: totalMaquina,
+          tipo_combustible: 'Diesel',
+          cantidad_combustible: cantidadCombustible,
+          precio_combustible: cantidadCombustible > 0 ? 8000 : 0,
+          total_combustible: totalCombustible,
+          costos_adicionales: totalCostos,
+          costo_total: costo_total
+        }])
+        .select()
+
+      if (errorActividad) {
+        alert('Error: ' + errorActividad.message)
+        setLoading(false)
+        return
+      }
+
+      const actividadId = actividad[0].id
+
+      // Guardar productos según tipo
+      if (tipoActividad === 'siembra' && siebraProductos.length > 0) {
+        const productosInsert = siebraProductos.map(p => ({
+          actividad_id: actividadId,
+          producto_id: parseInt(p.productoId),
+          cantidad: parseFloat(p.cantidad)
+        }))
+        await supabase.from('api_actividad_producto').insert(productosInsert)
+      } else if (['fumigacion', 'fertilizacion', 'riego', 'arar', 'desmalezar', 'otro'].includes(tipoActividad) && genericoProductos.length > 0) {
+        const productosInsert = genericoProductos.map(p => ({
+          actividad_id: actividadId,
+          producto_id: parseInt(p.productoId),
+          cantidad: parseFloat(p.cantidad)
+        }))
+        await supabase.from('api_actividad_producto').insert(productosInsert)
+      }
+
+      alert('✅ Actividad registrada exitosamente')
+      
+      // Limpiar formulario
+      setLoteId('')
+      setFecha('')
+      setZafraId('')
+      setSiebraSemilla('')
+      setSiebraDistancia('')
+      setSiebraProfundidad('')
+      setSiebraProductos([])
+      setSiebraMO('')
+      setSiebraMaquinaria('')
+      setSiebraObservaciones('')
+      setCosechaRendimiento('')
+      setCosechaPrecio('')
+      setCosechaTransporte('')
+      setCosechaMO('')
+      setCosechaMaquinaria('')
+      setCosechaObservaciones('')
+      setGenericoProductos([])
+      setGenericoMaquinaria('')
+      setGenericoCombustible('')
+      setGenericoMO('')
+      setGenericoCostos([])
+      setGenericoObservaciones('')
+
     } catch (error) {
       alert('Error: ' + error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -229,6 +368,10 @@ export default function RegistroActividad() {
                   {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Observaciones</label>
+                <input type="text" value={siebraObservaciones} onChange={(e) => setSiebraObservaciones(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
             </div>
 
             <div>
@@ -294,6 +437,10 @@ export default function RegistroActividad() {
                   {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Observaciones</label>
+                <input type="text" value={cosechaObservaciones} onChange={(e) => setCosechaObservaciones(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
             </div>
 
             <div className="bg-[#F5F2E6] p-4 rounded border-2 border-[#1F3D2B]">
@@ -302,7 +449,7 @@ export default function RegistroActividad() {
           </div>
         )}
 
-        {/* GENÉRICO (Fumigación, Fertilización, Riego, Arar, Desmalezar, etc) */}
+        {/* GENÉRICO */}
         {['fumigacion', 'fertilizacion', 'riego', 'arar', 'desmalezar', 'otro'].includes(tipoActividad) && (
           <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] space-y-4">
             <h3 className="text-xl font-bold text-[#1F3D2B]">📋 Detalles Actividad</h3>
@@ -362,6 +509,11 @@ export default function RegistroActividad() {
             </div>
 
             <div>
+              <label className="block text-sm font-bold mb-1">Observaciones</label>
+              <textarea value={genericoObservaciones} onChange={(e) => setGenericoObservaciones(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" rows="2"></textarea>
+            </div>
+
+            <div>
               <label className="block text-sm font-bold mb-2">Costos Adicionales</label>
               <table className="w-full text-xs border-collapse">
                 <thead>
@@ -396,8 +548,8 @@ export default function RegistroActividad() {
           </div>
         )}
 
-        <button type="submit" className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116]">
-          ✅ Guardar Actividad
+        <button type="submit" disabled={loading} className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116] disabled:bg-gray-400">
+          {loading ? '⏳ Guardando...' : '✅ Guardar Actividad'}
         </button>
       </form>
     </div>
