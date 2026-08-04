@@ -69,6 +69,7 @@ export default function RegistroGasto() {
     setItems([...items, { 
       id: Date.now(), 
       categoriaId: '', 
+      categoriaNombre: '',
       productoId: '', 
       descripcion: '', 
       cantidad: '', 
@@ -88,6 +89,11 @@ export default function RegistroGasto() {
       if (item.id === id) {
         const updated = { ...item, [field]: value }
         
+        if (field === 'categoriaId') {
+          const cat = categorias.find(c => c.id === parseInt(value))
+          updated.categoriaNombre = cat ? cat.nombre : ''
+        }
+
         if (field === 'cantidad' || field === 'precioUnitario') {
           const cant = parseFloat(updated.cantidad) || 0
           const precio = parseFloat(updated.precioUnitario) || 0
@@ -125,9 +131,9 @@ export default function RegistroGasto() {
     }))
   }
 
-  const openCreateProductoModal = (itemId, catId) => {
+  const openCreateProductoModal = (itemId, catId, catNombre) => {
     setModalProductoItemId(itemId)
-    setNewProdCategoria(catId)
+    setNewProdCategoria(catNombre)
     setShowModalProducto(true)
   }
 
@@ -164,7 +170,7 @@ export default function RegistroGasto() {
 
     const { data, error } = await supabase.from('api_producto').insert([{
       nombre: newProdNombre,
-      categoria_id: parseInt(newProdCategoria),
+      categoria: newProdCategoria,
       unidad: newProdUnidad,
       precio_actual: parseFloat(newProdPrecio),
       user_id: user
@@ -185,7 +191,6 @@ export default function RegistroGasto() {
     
     fetchProductos()
 
-    // Auto-seleccionar el nuevo producto en la fila
     if (modalProductoItemId) {
       setTimeout(() => {
         updateItem(modalProductoItemId, 'productoId', nuevoProductoId)
@@ -339,9 +344,9 @@ export default function RegistroGasto() {
                     <div className="flex gap-1">
                       <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="flex-1 p-1 border rounded text-xs">
                         <option value="">Selecciona</option>
-                        {item.categoriaId && productos.filter(p => p.categoria_id === parseInt(item.categoriaId)).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        {item.categoriaNombre && productos.filter(p => p.categoria === item.categoriaNombre).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                       </select>
-                      <button type="button" onClick={() => openCreateProductoModal(item.id, item.categoriaId)} className="bg-blue-600 text-white px-2 rounded font-bold text-xs">+</button>
+                      <button type="button" onClick={() => openCreateProductoModal(item.id, item.categoriaId, item.categoriaNombre)} disabled={!item.categoriaNombre} className="bg-blue-600 text-white px-2 rounded font-bold text-xs disabled:bg-gray-400">+</button>
                     </div>
                   </td>
                   <td className="p-2">
@@ -409,6 +414,8 @@ export default function RegistroGasto() {
             <input type="text" placeholder="Unidad (L, kg, etc)" value={newProdUnidad} onChange={(e) => setNewProdUnidad(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-3" />
             <input type="number" step="0.01" placeholder="Precio" value={newProdPrecio} onChange={(e) => setNewProdPrecio(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-4" />
 
+            <p className="text-sm font-bold text-[#1F3D2B] mb-2">Categoría: <span className="text-blue-600">{newProdCategoria}</span></p>
+
             <div className="flex gap-2">
               <button onClick={createProducto} className="flex-1 bg-green-600 text-white font-bold py-2 rounded">✅ Crear</button>
               <button onClick={() => setShowModalProducto(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cancelar</button>
@@ -419,4 +426,3 @@ export default function RegistroGasto() {
     </div>
   )
 }
-
