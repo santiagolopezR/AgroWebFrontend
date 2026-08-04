@@ -243,10 +243,108 @@ export default function RegistroGasto() {
   }
 
   const handleImportExecute = async () => {
-    if (importDatos.length === 0) {
-      alert('No hay datos para importar')
-      return
+  if (importDatos.length === 0) {
+    alert('No hay datos para importar')
+    return
+  }
+
+  setImportLoading(true)
+
+  try {
+    for (const row of importDatos) {
+      const fincaNombre = row['Finca']
+      const facturaNro = row['Factura']
+      const proveedorNombre = row['Proveedor']
+      const fechaRow = row['Fecha']
+      const categoria = row['Categoría']
+      const producto = row['Producto']
+      const descripcion = row['Descripción'] || ''
+      const cantidad = parseFloat(row['Cantidad']) || 0
+      const precioUnitario = parseFloat(row['Precio Unitario']) || 0
+      const ivaItem = parseFloat(row['IVA%']) || 19
+      const pagadoPorRow = row['Pagado Por'] || 'Santiago'
+
+      const finca = fincas.find(f => f.nombre.toLowerCase() === fincaNombre?.toLowerCase())
+      if (!finca) continue
+
+      let proveedorId = null
+      if (proveedorNombre) {
+        let prov = proveedores.find(p => p.nombre.toLowerCase() === proveedorNombre.toLowerCase())
+        if (!prov) {
+          const { data: newProv } = await supabase.from('api_proveedor').insert([{
+            nombre: proveedorNombre,
+            user_id: user
+          }]).select()
+          prov = newProv?.[0]
+        }
+        proveedorId = prov?.id
+      }
+
+      const total = cantidad * precioUnitario
+      const totalBruto = total
+      const totalIva = total * (ivaItem / 100)
+      const totalNeto = totalBruto + totalIva
+
+      const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
+        finca_id: finca.id,
+        factura_numero: facturaNro,
+        proveedor_id: proveedorId,
+        fecha: fechaRow,
+        iva_porcentaje: ivaItem,
+        total_bruto: totalBruto,
+        total_iva: totalIva,
+        total_neto: totalNeto,
+        pagado_por: pagadoPorRow,
+        user_id: user
+      }]).select()
+
+      if (errorGasto) continue
+
+      const gastoId = gasto[0].id
+      const cat = categorias.find(c => c.nombre.trim().toLowerCase() === categoria?.trim().toLowerCase())
+
+      if (cat) {
+        // Crear producto si no existe
+        let productoId = null
+        const prodExistente = productos.find(p => p.nombre?.toLowerCase() === producto?.toLowerCase())
+        
+        if (prodExistente) {
+          productoId = prodExistente.id
+        } else {
+          const { data: newProd } = await supabase.from('api_producto').insert([{
+            nombre: producto,
+            categoria: cat.nombre,
+            unidad: 'unidad',
+            precio_actual: precioUnitario,
+            user_id: user
+          }]).select()
+          productoId = newProd?.[0]?.id
+        }
+
+        await supabase.from('api_finca_gasto_item').insert([{
+          gasto_id: gastoId,
+          tipo_costo_id: getCostoIdFromCategoria(cat.nombre),
+          producto_id: productoId,
+          descripcion: descripcion || producto,
+          cantidad: cantidad,
+          unidad: 'unidad',
+          precio_unitario: precioUnitario,
+          total: total
+        }])
+      }
     }
+
+    alert(`✅ Importados ${importDatos.length} gastos`)
+    setImportDatos([])
+    setImportPreview(false)
+    setShowModalImport(false)
+    fetchProductos()
+  } catch (error) {
+    alert('Error: ' + error.message)
+  } finally {
+    setImportLoading(false)
+  }
+}
 
     setImportLoading(true)
 
