@@ -476,7 +476,7 @@ export default function RegistroGasto() {
                     <div className="flex gap-1">
                       <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="flex-1 p-1 border rounded text-xs">
                         <option value="">Selecciona</option>
-                        {item.categoriaNombre && productos.filter(p => p.categoria === item.categoriaNombre).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                        {item.categoriaNombre && productos.filter(p => p.categoria?.toLowerCase().trim() === item.categoriaNombre?.toLowerCase().trim()).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                       </select>
                       <button type="button" onClick={() => openCreateProductoModal(item.id, item.categoriaId, item.categoriaNombre)} disabled={!item.categoriaNombre} className="bg-blue-600 text-white px-2 rounded font-bold text-xs disabled:bg-gray-400">+</button>
                     </div>
