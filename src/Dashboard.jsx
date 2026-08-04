@@ -71,16 +71,59 @@ export default function Dashboard() {
     setActividades(actividadesFiltradas)
   }
 
-  const fetchGastos = async () => {
-    const { data } = await supabase
-      .from('api_finca_gasto')
-      .select('*')
-      .eq('finca_id', parseInt(fincaId))
-      .eq('user_id', user)
-      .order('fecha', { ascending: false })
-      .limit(20)
+  {/* GASTOS - TABLA CON ITEMS */}
+<div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] mb-6">
+  <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Detallados</h3>
+  {gastos.length === 0 ? (
+    <p className="text-[#6B5D45]">No hay gastos registrados</p>
+  ) : (
+    <div className="space-y-4">
+      {gastos.map(gasto => (
+        <div key={gasto.id} className="border-2 border-[#D8D2BE] rounded-lg overflow-hidden">
+          {/* ENCABEZADO GASTO */}
+          <div className="bg-[#F5F2E6] p-4 flex justify-between items-center">
+            <div>
+              <p className="font-bold text-lg text-[#1F3D2B]">Factura: {gasto.factura_numero}</p>
+              <p className="text-sm text-[#6B5D45]">{gasto.fecha} | Pagado por: {gasto.pagado_por}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString()}</p>
+              <p className="text-xs text-[#6B5D45]">IVA: ${parseFloat(gasto.total_iva).toLocaleString()}</p>
+            </div>
+          </div>
 
-    setGastos(data || [])
+          {/* ITEMS */}
+          {gasto.api_finca_gasto_item && gasto.api_finca_gasto_item.length > 0 ? (
+            <div className="p-4 bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-[#D8D2BE]">
+                    <th className="text-left p-2 font-bold">Descripción</th>
+                    <th className="text-center p-2 font-bold">Cantidad</th>
+                    <th className="text-center p-2 font-bold">Precio U</th>
+                    <th className="text-right p-2 font-bold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gasto.api_finca_gasto_item.map(item => (
+                    <tr key={item.id} className="border-b border-[#D8D2BE]">
+                      <td className="p-2">{item.descripcion}</td>
+                      <td className="text-center p-2">{item.cantidad}</td>
+                      <td className="text-center p-2">${parseFloat(item.precio_unitario).toLocaleString()}</td>
+                      <td className="text-right p-2 font-bold">${parseFloat(item.total).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-4 bg-white text-[#6B5D45]">Sin items</div>
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
   }
 
   const fetchResumenes = async () => {
