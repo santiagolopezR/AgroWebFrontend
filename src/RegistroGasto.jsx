@@ -231,16 +231,19 @@ export default function RegistroGasto() {
 
     const gastoId = gasto[0].id
 
-    const itemsInsert = items.map(item => ({
-      gasto_id: gastoId,
-      tipo_costo_id: parseInt(item.categoriaId),
-      producto_id: item.productoId ? parseInt(item.productoId) : null,
-      descripcion: item.descripcion,
-      cantidad: parseFloat(item.cantidad),
-      unidad: 'unidad',
-      precio_unitario: parseFloat(item.precioUnitario),
-      total: item.total
-    }))
+    const itemsInsert = items.map(item => {
+  const tipoCosto = categorias.find(c => c.id === parseInt(item.categoriaId))
+  return {
+    gasto_id: gastoId,
+    tipo_costo_id: tipoCosto ? tipoCosto.id : parseInt(item.categoriaId),  // ✅ BIEN
+    producto_id: item.productoId ? parseInt(item.productoId) : null,
+    descripcion: item.descripcion,
+    cantidad: parseFloat(item.cantidad),
+    unidad: 'unidad',
+    precio_unitario: parseFloat(item.precioUnitario),
+    total: item.total
+  }
+})
 
     const { error: errorItems } = await supabase.from('api_finca_gasto_item').insert(itemsInsert)
 
