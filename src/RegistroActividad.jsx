@@ -1,401 +1,405 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Search } from 'lucide-react'
 import { supabase } from './supabaseClient'
 
-let uid = 0
-const nextId = () => `p-${++uid}`
-
-function nuevaFila() {
-  return {
-    id: nextId(),
-    producto_id: '',
-    producto: '',
-    dosisLiterPorHa: '',
-    dosisTotal: '',
-    precio_unitario: '',
-    total: '',
-  }
-}
-
 export default function RegistroActividad() {
+  const [user, setUser] = useState(null)
   const [lotes, setLotes] = useState([])
-  const [tiposActividad, setTiposActividad] = useState([])
+  const [maquinarias, setMaquinarias] = useState([])
   const [productos, setProductos] = useState([])
-  const [lotesSeleccionados, setLotesSeleccionados] = useState([])
-  const [buscarLotes, setBuscarLotes] = useState('')
-  const [tipoActividad, setTipoActividad] = useState('')
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
-  const [responsable, setResponsable] = useState('Operario')
-  const [observaciones, setObservaciones] = useState('')
-  const [filas, setFilas] = useState([nuevaFila()])
-  const [loading, setLoading] = useState(true)
-  const [guardando, setGuardando] = useState(false)
+  const [categorias, setCategorias] = useState([])
+  
+  const [loteId, setLoteId] = useState('')
+  const [fecha, setFecha] = useState('')
+  const [zafraId, setZafraId] = useState('')
+  const [zafrasDisponibles, setZafrasDisponibles] = useState([])
+  const [tipoActividad, setTipoActividad] = useState('siembra')
+  
+  // Siembra
+  const [siebraSemilla, setSiebraSemilla] = useState('')
+  const [siebraDistancia, setSiebraDistancia] = useState('')
+  const [siebraProfundidad, setSiebraProfundidad] = useState('')
+  const [siebraProductos, setSiebraProductos] = useState([])
+  const [siebraMO, setSiebraMO] = useState('')
+  const [siebraMaquinaria, setSiebraMaquinaria] = useState('')
+  
+  // Cosecha
+  const [cosechaRendimiento, setCosechaRendimiento] = useState('')
+  const [cosechaPrecio, setCosechaPrecio] = useState('')
+  const [cosechaTransporte, setCosechaTransporte] = useState('')
+  const [cosechaMO, setCosechaMO] = useState('')
+  const [cosechaMaquinaria, setCosechaMaquinaria] = useState('')
+  
+  // Genérico (Fumigación, Fertilización, etc)
+  const [genericoProductos, setGenericoProductos] = useState([])
+  const [genericoMaquinaria, setGenericoMaquinaria] = useState('')
+  const [genericoCombustible, setGenericoCombustible] = useState('')
+  const [genericoMO, setGenericoMO] = useState('')
+  const [genericoCostos, setGenericoCostos] = useState([])
 
   useEffect(() => {
-    traerDatos()
+    getUser()
   }, [])
 
-  const traerDatos = async () => {
-    try {
-      const { data: lotesData } = await supabase.from('api_lote').select('*')
-      const { data: tiposData } = await supabase.from('api_tipoactividad').select('*')
-      const { data: productosData } = await supabase.from('api_producto').select('*')
-      
-      setLotes(lotesData || [])
-      setTiposActividad(tiposData || [])
-      setProductos(productosData || [])
-      setLoading(false)
-    } catch (err) {
-      console.error('Error:', err)
-      setLoading(false)
+  const getUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    setUser(session?.user?.id)
+  }
+
+  useEffect(() => {
+    if (user) {
+      fetchLotes()
+      fetchMaquinarias()
+      fetchProductos()
+      fetchCategorias()
+    }
+  }, [user])
+
+  const fetchLotes = async () => {
+    const { data } = await supabase.from('api_lote').select('*').eq('user_id', user)
+    setLotes(data || [])
+  }
+
+  const fetchMaquinarias = async () => {
+    const { data } = await supabase.from('api_maquinaria').select('*').eq('user_id', user)
+    setMaquinarias(data || [])
+  }
+
+  const fetchProductos = async () => {
+    const { data } = await supabase.from('api_producto').select('*').eq('user_id', user)
+    setProductos(data || [])
+  }
+
+  const fetchCategorias = async () => {
+    const { data } = await supabase.from('api_categoria').select('*')
+    const unique = []
+    const nombres = new Set()
+    data?.forEach(cat => {
+      const nombre = cat.nombre.trim()
+      if (!nombres.has(nombre)) {
+        nombres.add(nombre)
+        unique.push(cat)
+      }
+    })
+    setCategorias(unique)
+  }
+
+  const handleLoteChange = (newLoteId) => {
+    setLoteId(newLoteId)
+    setZafraId('')
+    setZafrasDisponibles([])
+  }
+
+  const handleFechaChange = async (newFecha) => {
+    setFecha(newFecha)
+    if (loteId && newFecha) {
+      await buscarZafras(loteId, newFecha)
     }
   }
 
-  const lotesFiltrados = lotes.filter(l =>
-    l.nombre.toLowerCase().includes(buscarLotes.toLowerCase())
-  )
+  const buscarZafras = async (lotId, fch) => {
+    const { data } = await supabase
+      .from('api_zafra')
+      .select('*')
+      .eq('lote_id', lotId)
+      .lte('fecha_inicio', fch)
+      .or(`fecha_fin.is.null,fecha_fin.gte.${fch}`)
+      .order('fecha_inicio', { ascending: false })
+      .limit(4)
 
-  const toggleLote = (loteId) => {
-    setLotesSeleccionados(prev =>
-      prev.includes(loteId) ? prev.filter(id => id !== loteId) : [...prev, loteId]
-    )
+    if (data && data.length > 0) {
+      setZafrasDisponibles(data)
+      setZafraId(data[0].id)
+    } else {
+      setZafrasDisponibles([])
+      setZafraId('')
+    }
   }
 
-  const hectareasTotales = lotesSeleccionados.reduce((sum, loteId) => {
-    const lote = lotes.find(l => l.id === loteId)
-    return sum + (lote?.superficie || 0)
-  }, 0)
-
-  const actualizarFila = (id, campo, valor) => {
-    setFilas(prev => prev.map(f => {
-      if (f.id !== id) return f
-      
-      const fila = { ...f, [campo]: valor }
-      
-      if (campo === 'dosisLiterPorHa') {
-        const dosis_ha = parseFloat(valor) || 0
-        const ha = hectareasTotales || 1
-        fila.dosisTotal = (dosis_ha * ha).toFixed(2)
-      } else if (campo === 'dosisTotal') {
-        const dosis_tot = parseFloat(valor) || 0
-        const ha = hectareasTotales || 1
-        fila.dosisLiterPorHa = ha > 0 ? (dosis_tot / ha).toFixed(2) : '0'
-      }
-      
-      const dosis = parseFloat(fila.dosisTotal) || 0
-      const precio = parseFloat(fila.precio_unitario) || 0
-      fila.total = (dosis * precio).toFixed(2)
-      
-      return fila
-    }))
+  const addProductoGenerico = () => {
+    setGenericoProductos([...genericoProductos, { id: Date.now(), productoId: '', cantidad: '', dosis: '' }])
   }
 
-  const cambiarProducto = (id, productoId) => {
-    const producto = productos.find(p => p.id === productoId)
-    setFilas(prev => prev.map(f => {
-      if (f.id !== id) return f
-      
-      const fila = {
-        ...f,
-        producto_id: productoId,
-        producto: producto?.nombre || '',
-        precio_unitario: producto?.precio_actual || 0
-      }
-      
-      const dosis = parseFloat(fila.dosisTotal) || 0
-      const precio = parseFloat(fila.precio_unitario) || 0
-      fila.total = (dosis * precio).toFixed(2)
-      
-      return fila
-    }))
+  const removeProductoGenerico = (id) => {
+    setGenericoProductos(genericoProductos.filter(p => p.id !== id))
   }
 
-  const agregarFila = () => {
-    setFilas(prev => [...prev, nuevaFila()])
+  const updateProductoGenerico = (id, field, value) => {
+    setGenericoProductos(genericoProductos.map(p => p.id === id ? { ...p, [field]: value } : p))
   }
 
-  const quitarFila = (id) => {
-    setFilas(prev => prev.length > 1 ? prev.filter(f => f.id !== id) : prev)
+  const addCostoGenerico = () => {
+    setGenericoCostos([...genericoCostos, { id: Date.now(), descripcion: '', cantidad: '', valor: '' }])
   }
 
-  const totalGeneral = filas.reduce((acc, f) => acc + (parseFloat(f.total) || 0), 0)
+  const removeCostoGenerico = (id) => {
+    setGenericoCostos(genericoCostos.filter(c => c.id !== id))
+  }
 
-  const guardar = async () => {
-    if (lotesSeleccionados.length === 0) {
-      alert('Selecciona al menos un lote')
+  const updateCostoGenerico = (id, field, value) => {
+    setGenericoCostos(genericoCostos.map(c => c.id === id ? { ...c, [field]: value } : c))
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+
+    if (!loteId || !fecha || !zafraId) {
+      alert('Completa Lote, Fecha y Zafra')
       return
     }
-    if (!tipoActividad) {
-      alert('Selecciona tipo de actividad')
-      return
-    }
 
-    setGuardando(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      const { data: actividad, error: errorActividad } = await supabase
-        .from('api_actividad')
-        .insert({
-          tipo_id: parseInt(tipoActividad),
-          fecha,
-          responsable,
-          observaciones,
-          user_id: user.id,
-        })
-        .select()
-
-      if (errorActividad) throw errorActividad
-
-      const actividadId = actividad[0].id
-
-      const lotesData = lotesSeleccionados.map(loteId => ({
-        actividad_id: actividadId,
-        lote_id: loteId,
-        hectareas: lotes.find(l => l.id === loteId)?.superficie || 0,
-      }))
-
-      const { error: errorLotes } = await supabase
-        .from('api_actividad_lote')
-        .insert(lotesData)
-
-      if (errorLotes) throw errorLotes
-
-      const productosData = filas
-        .filter(f => f.producto_id)
-        .map(f => {
-          const cantidad = parseFloat(f.dosisTotal) || 0
-          const precio = parseFloat(f.precio_unitario) || 0
-          const total = cantidad * precio
-          
-          return {
-            actividad_id: actividadId,
-            producto_id: parseInt(f.producto_id),
-            cantidad: cantidad,
-            precio_unitario: precio,
-            total: total,
-          }
-        })
-
-      if (productosData.length > 0) {
-        const { error: errorProductos } = await supabase
-          .from('api_actividad_producto')
-          .insert(productosData)
-
-        if (errorProductos) throw errorProductos
-      }
-
-      alert('✓ Actividad guardada con todos los detalles')
-      setFilas([nuevaFila()])
-      setLotesSeleccionados([])
-      setTipoActividad('')
-      setObservaciones('')
-      setFecha(new Date().toISOString().slice(0, 10))
-    } catch (err) {
-      alert('Error: ' + err.message)
-    } finally {
-      setGuardando(false)
+      // Aquí irá la lógica de guardado según el tipo de actividad
+      alert('✅ Actividad registrada (en desarrollo)')
+    } catch (error) {
+      alert('Error: ' + error.message)
     }
   }
-
-  if (loading) return <div className="p-8">Cargando datos...</div>
 
   return (
-    <div className="p-8 max-w-6xl">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-[#1F3D2B] mb-2">Registrar Actividad</h2>
-        <p className="text-[#6B5D45]">Fumigación, riego, siembra, etc.</p>
-      </div>
+    <div className="p-8 max-w-full">
+      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">📝 Registrar Actividad</h2>
 
-      {/* LOTES */}
-      <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
-        <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">1️⃣ Selecciona Lotes</h3>
-        
-        <div className="mb-4">
-          <div className="relative">
-            <Search size={20} className="absolute left-3 top-3 text-[#6B5D45]" />
-            <input
-              type="text"
-              value={buscarLotes}
-              onChange={(e) => setBuscarLotes(e.target.value)}
-              placeholder="Buscar lote..."
-              className="w-full pl-10 pr-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
-            />
+      <form onSubmit={handleSave} className="space-y-6">
+        {/* ENCABEZADO - LOTE + FECHA + ZAFRA */}
+        <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B]">
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm font-bold text-[#1F3D2B]">Lote *</label>
+              <select value={loteId} onChange={(e) => handleLoteChange(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
+                <option value="">Selecciona</option>
+                {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre} ({l.superficie} ha)</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-[#1F3D2B]">Fecha *</label>
+              <input type="date" value={fecha} onChange={(e) => handleFechaChange(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-[#1F3D2B]">Zafra *</label>
+              <select value={zafraId} onChange={(e) => setZafraId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
+                <option value="">Selecciona</option>
+                {zafrasDisponibles.map(z => <option key={z.id} value={z.id}>Zafra {z.numero_zafra} ({z.estado})</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold text-[#1F3D2B]">Tipo Actividad *</label>
+              <select value={tipoActividad} onChange={(e) => setTipoActividad(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
+                <option value="siembra">🌱 Siembra</option>
+                <option value="cosecha">🌾 Cosecha</option>
+                <option value="fumigacion">💨 Fumigación</option>
+                <option value="fertilizacion">🥗 Fertilización</option>
+                <option value="riego">💧 Riego</option>
+                <option value="arar">🚜 Arar</option>
+                <option value="desmalezar">🌿 Desmalezar</option>
+                <option value="otro">📋 Otro</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div className="max-h-72 overflow-y-auto border-2 border-[#D8D2BE] rounded-lg p-4 space-y-2 mb-4">
-          {lotesFiltrados.length === 0 ? (
-            <p className="text-[#6B5D45]">No hay lotes</p>
-          ) : (
-            lotesFiltrados.map(lote => (
-              <div key={lote.id} className="flex items-center gap-3 p-3 hover:bg-[#F5F2E6] rounded-lg border border-[#D8D2BE]">
-                <input
-                  type="checkbox"
-                  id={`lote-${lote.id}`}
-                  checked={lotesSeleccionados.includes(lote.id)}
-                  onChange={() => toggleLote(lote.id)}
-                  className="w-5 h-5 cursor-pointer"
-                />
-                <label htmlFor={`lote-${lote.id}`} className="cursor-pointer flex-1 text-lg">
-                  <span className="font-bold">{lote.nombre}</span>
-                  <span className="ml-3 text-[#6B5D45]">({lote.superficie} ha)</span>
-                </label>
+        {/* SIEMBRA */}
+        {tipoActividad === 'siembra' && (
+          <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] space-y-4">
+            <h3 className="text-xl font-bold text-[#1F3D2B]">🌱 Formulario Siembra</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold mb-1">Semilla/Variedad</label>
+                <input type="text" value={siebraSemilla} onChange={(e) => setSiebraSemilla(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
               </div>
-            ))
-          )}
-        </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Distancia Surcos (cm)</label>
+                <input type="number" step="0.1" value={siebraDistancia} onChange={(e) => setSiebraDistancia(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Profundidad (cm)</label>
+                <input type="number" step="0.1" value={siebraProfundidad} onChange={(e) => setSiebraProfundidad(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Mano de Obra (jornales)</label>
+                <input type="number" step="0.1" value={siebraMO} onChange={(e) => setSiebraMO(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Maquinaria</label>
+                <select value={siebraMaquinaria} onChange={(e) => setSiebraMaquinaria(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm">
+                  <option value="">Sin maquinaria</option>
+                  {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                </select>
+              </div>
+            </div>
 
-        {hectareasTotales > 0 && (
-          <div className="bg-[#1F3D2B] text-white p-4 rounded-lg font-bold text-xl">
-            📊 Total: {hectareasTotales} ha
+            <div>
+              <label className="block text-sm font-bold mb-2">Productos (Semillas, Fertilizantes)</label>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#F5F2E6]">
+                    <th className="border p-2 text-left">Producto</th>
+                    <th className="border p-2 text-center">Cantidad</th>
+                    <th className="border p-2 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {siebraProductos.map(p => (
+                    <tr key={p.id} className="border">
+                      <td className="border p-2">
+                        <select value={p.productoId} onChange={(e) => setSiebraProductos(siebraProductos.map(x => x.id === p.id ? { ...x, productoId: e.target.value } : x))} className="w-full p-1 border rounded text-xs">
+                          <option value="">Selecciona</option>
+                          {productos.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                        </select>
+                      </td>
+                      <td className="border p-2">
+                        <input type="number" step="0.01" value={p.cantidad} onChange={(e) => setSiebraProductos(siebraProductos.map(x => x.id === p.id ? { ...x, cantidad: e.target.value } : x))} className="w-full p-1 border rounded text-xs text-center" />
+                      </td>
+                      <td className="border p-2 text-center">
+                        <button type="button" onClick={() => setSiebraProductos(siebraProductos.filter(x => x.id !== p.id))} className="text-red-600 font-bold">❌</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button type="button" onClick={() => setSiebraProductos([...siebraProductos, { id: Date.now(), productoId: '', cantidad: '' }])} className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">➕ Agregar Producto</button>
+            </div>
           </div>
         )}
-      </div>
 
-      {/* CABECERA */}
-      <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
-        <h3 className="text-xl font-bold text-[#1F3D2B] mb-6">2️⃣ Detalles de la Actividad</h3>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-bold text-[#1F3D2B] mb-2">Tipo de Actividad</label>
-            <select
-              value={tipoActividad}
-              onChange={(e) => setTipoActividad(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg font-medium"
-            >
-              <option value="">Seleccionar tipo...</option>
-              {tiposActividad.map(t => (
-                <option key={t.id} value={t.id}>{t.nombre}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#1F3D2B] mb-2">Fecha</label>
-            <input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#1F3D2B] mb-2">Responsable</label>
-            <input
-              type="text"
-              value={responsable}
-              onChange={(e) => setResponsable(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#1F3D2B] mb-2">Observaciones</label>
-            <input
-              type="text"
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-[#D8D2BE] rounded-lg text-lg"
-            />
-          </div>
-        </div>
-      </div>
+        {/* COSECHA */}
+        {tipoActividad === 'cosecha' && (
+          <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] space-y-4">
+            <h3 className="text-xl font-bold text-[#1F3D2B]">🌾 Formulario Cosecha</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold mb-1">Rendimiento (kg)</label>
+                <input type="number" step="0.01" value={cosechaRendimiento} onChange={(e) => setCosechaRendimiento(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Precio Venta ($/kg)</label>
+                <input type="number" step="0.01" value={cosechaPrecio} onChange={(e) => setCosechaPrecio(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Transporte (km)</label>
+                <input type="number" step="0.1" value={cosechaTransporte} onChange={(e) => setCosechaTransporte(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Mano de Obra (jornales)</label>
+                <input type="number" step="0.1" value={cosechaMO} onChange={(e) => setCosechaMO(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Maquinaria</label>
+                <select value={cosechaMaquinaria} onChange={(e) => setCosechaMaquinaria(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm">
+                  <option value="">Sin maquinaria</option>
+                  {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                </select>
+              </div>
+            </div>
 
-      {/* PRODUCTOS - Tabla */}
-      <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
-        <h3 className="text-xl font-bold text-[#1F3D2B] mb-6">3️⃣ Productos Aplicados</h3>
-        
-        <div className="overflow-x-auto mb-6 border-2 border-[#D8D2BE] rounded-lg">
-          <table className="w-full text-base">
-            <thead>
-              <tr className="bg-[#1F3D2B] text-white">
-                <th className="text-left py-4 px-4 font-bold">Producto</th>
-                <th className="text-left py-4 px-4 font-bold">Dosis L/ha</th>
-                <th className="text-left py-4 px-4 font-bold">Dosis Total (L)</th>
-                <th className="text-left py-4 px-4 font-bold">Precio/U ($)</th>
-                <th className="text-right py-4 px-4 font-bold">Total ($)</th>
-                <th className="text-center py-4 px-4 font-bold">X</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((f, i) => (
-                <tr key={f.id} className="border-b-2 border-[#D8D2BE] hover:bg-[#FBF9F2]">
-                  <td className="py-4 px-4">
-                    <select
-                      value={f.producto_id}
-                      onChange={(e) => cambiarProducto(f.id, parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base"
-                    >
-                      <option value="">Seleccionar...</option>
-                      {productos.map(p => (
-                        <option key={p.id} value={p.id}>{p.nombre}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="py-4 px-4">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={f.dosisLiterPorHa}
-                      onChange={(e) => actualizarFila(f.id, 'dosisLiterPorHa', e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base font-medium"
-                    />
-                  </td>
-                  <td className="py-4 px-4">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={f.dosisTotal}
-                      onChange={(e) => actualizarFila(f.id, 'dosisTotal', e.target.value)}
-                      placeholder="0"
-                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base font-bold bg-[#E8E6E0]"
-                    />
-                  </td>
-                  <td className="py-4 px-4">
-                    <input
-                      type="number"
-                      value={f.precio_unitario}
-                      readOnly
-                      className="w-full px-3 py-2 border-2 border-[#D8D2BE] rounded text-base font-bold bg-[#E8E6E0]"
-                    />
-                  </td>
-                  <td className="py-4 px-4 text-right font-bold text-lg">
-                    ${f.total}
-                  </td>
-                  <td className="py-4 px-4 text-center">
-                    <button
-                      onClick={() => quitarFila(f.id)}
-                      className="text-red-600 hover:text-red-800 p-2"
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            <div className="bg-[#F5F2E6] p-4 rounded border-2 border-[#1F3D2B]">
+              <p className="text-sm"><strong>Ingresos Totales:</strong> ${(parseFloat(cosechaRendimiento || 0) * parseFloat(cosechaPrecio || 0)).toFixed(2)}</p>
+            </div>
+          </div>
+        )}
 
-        <button
-          onClick={agregarFila}
-          className="w-full border-4 border-dashed border-[#1F3D2B] py-4 text-[#1F3D2B] font-bold text-lg rounded-lg hover:bg-[#F5F2E6] mb-6"
-        >
-          <Plus size={20} className="inline mr-2" /> Agregar Producto
+        {/* GENÉRICO (Fumigación, Fertilización, Riego, Arar, Desmalezar, etc) */}
+        {['fumigacion', 'fertilizacion', 'riego', 'arar', 'desmalezar', 'otro'].includes(tipoActividad) && (
+          <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] space-y-4">
+            <h3 className="text-xl font-bold text-[#1F3D2B]">📋 Detalles Actividad</h3>
+            
+            <div>
+              <label className="block text-sm font-bold mb-2">Productos</label>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#F5F2E6]">
+                    <th className="border p-2 text-left">Producto</th>
+                    <th className="border p-2 text-center">Cantidad</th>
+                    <th className="border p-2 text-center">Dosis/ha</th>
+                    <th className="border p-2 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {genericoProductos.map(p => (
+                    <tr key={p.id} className="border">
+                      <td className="border p-2">
+                        <select value={p.productoId} onChange={(e) => updateProductoGenerico(p.id, 'productoId', e.target.value)} className="w-full p-1 border rounded text-xs">
+                          <option value="">Selecciona</option>
+                          {productos.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                        </select>
+                      </td>
+                      <td className="border p-2">
+                        <input type="number" step="0.01" value={p.cantidad} onChange={(e) => updateProductoGenerico(p.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
+                      </td>
+                      <td className="border p-2">
+                        <input type="text" value={p.dosis} onChange={(e) => updateProductoGenerico(p.id, 'dosis', e.target.value)} className="w-full p-1 border rounded text-xs text-center" placeholder="L/ha" />
+                      </td>
+                      <td className="border p-2 text-center">
+                        <button type="button" onClick={() => removeProductoGenerico(p.id)} className="text-red-600 font-bold">❌</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button type="button" onClick={addProductoGenerico} className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">➕ Agregar Producto</button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-bold mb-1">Maquinaria</label>
+                <select value={genericoMaquinaria} onChange={(e) => setGenericoMaquinaria(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm">
+                  <option value="">Sin maquinaria</option>
+                  {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Combustible (L)</label>
+                <input type="number" step="0.1" value={genericoCombustible} onChange={(e) => setGenericoCombustible(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1">Mano de Obra (jornales)</label>
+                <input type="number" step="0.1" value={genericoMO} onChange={(e) => setGenericoMO(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold mb-2">Costos Adicionales</label>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#F5F2E6]">
+                    <th className="border p-2 text-left">Descripción</th>
+                    <th className="border p-2 text-center">Cantidad</th>
+                    <th className="border p-2 text-center">Valor</th>
+                    <th className="border p-2 text-center">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {genericoCostos.map(c => (
+                    <tr key={c.id} className="border">
+                      <td className="border p-2">
+                        <input type="text" value={c.descripcion} onChange={(e) => updateCostoGenerico(c.id, 'descripcion', e.target.value)} className="w-full p-1 border rounded text-xs" />
+                      </td>
+                      <td className="border p-2">
+                        <input type="number" step="0.01" value={c.cantidad} onChange={(e) => updateCostoGenerico(c.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
+                      </td>
+                      <td className="border p-2">
+                        <input type="number" step="0.01" value={c.valor} onChange={(e) => updateCostoGenerico(c.id, 'valor', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
+                      </td>
+                      <td className="border p-2 text-center">
+                        <button type="button" onClick={() => removeCostoGenerico(c.id)} className="text-red-600 font-bold">❌</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button type="button" onClick={addCostoGenerico} className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">➕ Agregar Costo</button>
+            </div>
+          </div>
+        )}
+
+        <button type="submit" className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116]">
+          ✅ Guardar Actividad
         </button>
-
-        <div className="bg-[#1F3D2B] text-white p-8 rounded-lg text-right">
-          <div className="text-lg opacity-90 mb-2">Costo Total de la Actividad</div>
-          <div className="text-5xl font-bold">${totalGeneral.toFixed(2)}</div>
-        </div>
-      </div>
-
-      <button
-        onClick={guardar}
-        disabled={guardando || !tipoActividad || lotesSeleccionados.length === 0}
-        className="w-full bg-[#1F3D2B] text-white font-bold text-lg py-4 rounded-lg hover:bg-[#0F2116] disabled:opacity-50 transition"
-      >
-        {guardando ? '⏳ Guardando...' : '✓ Guardar Actividad Completa'}
-      </button>
+      </form>
     </div>
   )
 }
