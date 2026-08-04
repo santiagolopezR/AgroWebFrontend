@@ -137,10 +137,20 @@ function Lotes() {
 function Cultivos() {
   const [items, setItems] = useState([])
   const [nombre, setNombre] = useState('')
+  const [userId, setUserId] = useState(null)
 
   useEffect(() => {
-    fetch()
+    getUser()
   }, [])
+
+  const getUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    setUserId(session?.user?.id)
+  }
+
+  useEffect(() => {
+    if (userId) fetch()
+  }, [userId])
 
   const fetch = async () => {
     const { data } = await supabase.from('api_cultivocatalogo').select('id, nombre')
@@ -149,7 +159,7 @@ function Cultivos() {
 
   const create = async (e) => {
     e.preventDefault()
-    await supabase.from('api_cultivocatalogo').insert([{ nombre }])
+    await supabase.from('api_cultivocatalogo').insert([{ nombre, user_id: userId }])
     setNombre('')
     fetch()
   }
