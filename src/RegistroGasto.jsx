@@ -51,9 +51,25 @@ export default function RegistroGasto() {
   }
 
   const fetchCategorias = async () => {
-    const { data } = await supabase.from('api_categoria').select('*')
-    setCategorias(data || [])
-  }
+  const { data } = await supabase
+    .from('api_categoria')
+    .select('*')
+    .or(`user_id.is.null,user_id.eq.${user}`)
+    .order('nombre')
+  
+  const unique = []
+  const nombres = new Set()
+  
+  data?.forEach(cat => {
+    const nombre = cat.nombre.trim()
+    if (!nombres.has(nombre)) {
+      nombres.add(nombre)
+      unique.push(cat)
+    }
+  })
+  
+  setCategorias(unique)
+}
 
   const fetchProductos = async () => {
     const { data } = await supabase.from('api_producto').select('*').eq('user_id', user)
