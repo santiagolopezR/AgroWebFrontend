@@ -196,22 +196,39 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-6 mb-6">
-        {/* GASTOS RECIENTES */}
-<div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-  <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Recientes</h3>
+        {/* GASTOS - TABLA HORIZONTAL */}
+<div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] mb-6">
+  <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Detallados</h3>
   {gastos.length === 0 ? (
     <p className="text-[#6B5D45]">No hay gastos registrados</p>
   ) : (
-    <div className="space-y-2">
-      {Array.from(new Map(gastos.map(g => [g.factura_numero, g])).values()).slice(0, 10).map(gasto => (
-        <div key={gasto.id} className="flex justify-between items-center p-2 bg-[#F5F2E6] rounded">
-          <div>
-            <p className="font-bold text-sm">{gasto.factura_numero}</p>
-            <p className="text-xs text-[#6B5D45]">{gasto.fecha}</p>
-          </div>
-          <p className="font-bold text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString()}</p>
-        </div>
-      ))}
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
+            <th className="p-3 text-left font-bold">Factura</th>
+            <th className="p-3 text-left font-bold">Fecha</th>
+            <th className="p-3 text-left font-bold">Proveedor</th>
+            <th className="p-3 text-center font-bold">Total Bruto</th>
+            <th className="p-3 text-center font-bold">IVA</th>
+            <th className="p-3 text-center font-bold">Total Neto</th>
+            <th className="p-3 text-left font-bold">Pagado Por</th>
+          </tr>
+        </thead>
+        <tbody>
+          {gastos.map(gasto => (
+            <tr key={gasto.id} className="border-b border-[#D8D2BE] hover:bg-[#F5F2E6]">
+              <td className="p-3 font-bold text-[#1F3D2B]">{gasto.factura_numero}</td>
+              <td className="p-3">{gasto.fecha}</td>
+              <td className="p-3">{gasto.proveedor_id ? gasto.proveedor_id : '-'}</td>
+              <td className="p-3 text-center">${parseFloat(gasto.total_bruto).toLocaleString()}</td>
+              <td className="p-3 text-center">${parseFloat(gasto.total_iva).toLocaleString()}</td>
+              <td className="p-3 text-center font-bold text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString()}</td>
+              <td className="p-3">{gasto.pagado_por}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )}
 </div>
