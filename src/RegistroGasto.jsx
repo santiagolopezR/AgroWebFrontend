@@ -17,9 +17,15 @@ export default function RegistroGasto() {
   
   const [items, setItems] = useState([])
   const [showModalProveedor, setShowModalProveedor] = useState(false)
+  const [showModalProducto, setShowModalProducto] = useState(false)
+  const [modalProductoItemId, setModalProductoItemId] = useState(null)
   const [newProvNombre, setNewProvNombre] = useState('')
   const [newProvContacto, setNewProvContacto] = useState('')
   const [newProvEmail, setNewProvEmail] = useState('')
+  const [newProdNombre, setNewProdNombre] = useState('')
+  const [newProdUnidad, setNewProdUnidad] = useState('')
+  const [newProdPrecio, setNewProdPrecio] = useState('')
+  const [newProdCategoria, setNewProdCategoria] = useState('')
 
   useEffect(() => {
     getUser()
@@ -119,6 +125,12 @@ export default function RegistroGasto() {
     }))
   }
 
+  const openCreateProductoModal = (itemId, catId) => {
+    setModalProductoItemId(itemId)
+    setNewProdCategoria(catId)
+    setShowModalProducto(true)
+  }
+
   const createProveedor = async () => {
     if (!newProvNombre) {
       alert('Ingresa nombre del proveedor')
@@ -144,37 +156,41 @@ export default function RegistroGasto() {
     fetchProveedores()
   }
 
-  const createCategoria = async (nombre) => {
-    if (!nombre) return
-
-    const { error } = await supabase.from('api_categoria').insert([{
-      nombre: nombre,
-      user_id: user
-    }])
-
-    if (!error) {
-      fetchCategorias()
-      return true
+  const createProducto = async () => {
+    if (!newProdNombre || !newProdUnidad || !newProdPrecio || !newProdCategoria) {
+      alert('Completa todos los campos')
+      return
     }
-    return false
-  }
-
-  const createProducto = async (nombre, categoriaId, unidad, precio) => {
-    if (!nombre || !categoriaId || !unidad || !precio) return
 
     const { data, error } = await supabase.from('api_producto').insert([{
-      nombre: nombre,
-      categoria_id: parseInt(categoriaId),
-      unidad: unidad,
-      precio_actual: parseFloat(precio),
+      nombre: newProdNombre,
+      categoria_id: parseInt(newProdCategoria),
+      unidad: newProdUnidad,
+      precio_actual: parseFloat(newProdPrecio),
       user_id: user
     }]).select()
 
-    if (!error && data) {
-      fetchProductos()
-      return data[0].id
+    if (error) {
+      alert('Error: ' + error.message)
+      return
     }
-    return null
+
+    const nuevoProductoId = data[0].id
+    
+    setNewProdNombre('')
+    setNewProdUnidad('')
+    setNewProdPrecio('')
+    setNewProdCategoria('')
+    setShowModalProducto(false)
+    
+    fetchProductos()
+
+    // Auto-seleccionar el nuevo producto en la fila
+    if (modalProductoItemId) {
+      setTimeout(() => {
+        updateItem(modalProductoItemId, 'productoId', nuevoProductoId)
+      }, 500)
+    }
   }
 
   const totalGasto = items.reduce((sum, item) => sum + (item.totalConIva || 0), 0)
@@ -212,7 +228,7 @@ export default function RegistroGasto() {
 
     const itemsInsert = items.map(item => ({
       gasto_id: gastoId,
-      tipo_costo_id: parseInt(item.categoriaId),  // Las categorías ahora SON los tipos de costo
+      tipo_costo_id: parseInt(item.categoriaId),
       producto_id: item.productoId ? parseInt(item.productoId) : null,
       descripcion: item.descripcion,
       cantidad: parseFloat(item.cantidad),
@@ -320,10 +336,13 @@ export default function RegistroGasto() {
                     </select>
                   </td>
                   <td className="p-2">
-                    <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="w-full p-1 border rounded text-xs">
-                      <option value="">Selecciona</option>
-                      {item.categoriaId && productos.filter(p => p.categoria_id === parseInt(item.categoriaId)).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
+                    <div className="flex gap-1">
+                      <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="flex-1 p-1 border rounded text-xs">
+                        <option value="">Selecciona</option>
+                        {item.categoriaId && productos.filter(p => p.categoria_id === parseInt(item.categoriaId)).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                      </select>
+                      <button type="button" onClick={() => openCreateProductoModal(item.id, item.categoriaId)} className="bg-blue-600 text-white px-2 rounded font-bold text-xs">+</button>
+                    </div>
                   </td>
                   <td className="p-2">
                     <input type="text" value={item.descripcion} onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)} className="w-full p-1 border rounded text-xs" />
@@ -379,6 +398,25 @@ export default function RegistroGasto() {
           </div>
         </div>
       )}
+
+      {/* MODAL PRODUCTO */}
+      {showModalProducto && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg border-4 border-[#1F3D2B] w-80">
+            <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">➕ Crear Producto</h3>
+            
+            <input type="text" placeholder="Nombre producto" value={newProdNombre} onChange={(e) => setNewProdNombre(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-3" />
+            <input type="text" placeholder="Unidad (L, kg, etc)" value={newProdUnidad} onChange={(e) => setNewProdUnidad(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-3" />
+            <input type="number" step="0.01" placeholder="Precio" value={newProdPrecio} onChange={(e) => setNewProdPrecio(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-4" />
+
+            <div className="flex gap-2">
+              <button onClick={createProducto} className="flex-1 bg-green-600 text-white font-bold py-2 rounded">✅ Crear</button>
+              <button onClick={() => setShowModalProducto(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
