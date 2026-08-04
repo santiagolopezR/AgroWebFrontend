@@ -13,6 +13,7 @@ export default function GestionDatos() {
         <button onClick={() => setTab('lotes')} className={`px-6 py-3 font-bold ${tab === 'lotes' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>📍 Lotes</button>
         <button onClick={() => setTab('cultivos')} className={`px-6 py-3 font-bold ${tab === 'cultivos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🌾 Cultivos</button>
         <button onClick={() => setTab('proveedores')} className={`px-6 py-3 font-bold ${tab === 'proveedores' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>👥 Proveedores</button>
+        <button onClick={() => setTab('maquinaria')} className={`px-6 py-3 font-bold ${tab === 'maquinaria' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🚜 Maquinaria</button>
         <button onClick={() => setTab('categorias')} className={`px-6 py-3 font-bold ${tab === 'categorias' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏷️ Categorías (Ver)</button>
       </div>
 
@@ -20,6 +21,7 @@ export default function GestionDatos() {
       {tab === 'lotes' && <Lotes />}
       {tab === 'cultivos' && <Cultivos />}
       {tab === 'proveedores' && <Proveedores />}
+      {tab === 'maquinaria' && <Maquinaria />}
       {tab === 'categorias' && <Categorias />}
     </div>
   )
@@ -219,6 +221,98 @@ function Proveedores() {
       </form>
       <div className="space-y-2">
         {items.map(p => <div key={p.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{p.nombre}</p><p className="text-sm text-[#6B5D45]">{p.email}</p></div>)}
+      </div>
+    </div>
+  )
+}
+
+function Maquinaria() {
+  const [items, setItems] = useState([])
+  const [nombre, setNombre] = useState('')
+  const [tipo, setTipo] = useState('')
+  const [capacidad, setCapacidad] = useState('')
+  const [consumo, setConsumo] = useState('')
+  const [combustible, setCombustible] = useState('Diesel')
+  const [costoHorario, setCostoHorario] = useState('')
+  const [costoEquipo, setCostoEquipo] = useState('')
+  const [anioCompra, setAnioCompra] = useState('')
+  const [estado, setEstado] = useState('Operativo')
+  const [observaciones, setObservaciones] = useState('')
+  const [userId, setUserId] = useState(null)
+
+  useEffect(() => {
+    getUser()
+  }, [])
+
+  const getUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    setUserId(session?.user?.id)
+  }
+
+  useEffect(() => {
+    if (userId) fetch()
+  }, [userId])
+
+  const fetch = async () => {
+    const { data } = await supabase.from('api_maquinaria').select('*').eq('user_id', userId)
+    setItems(data || [])
+  }
+
+  const create = async (e) => {
+    e.preventDefault()
+    await supabase.from('api_maquinaria').insert([{
+      nombre,
+      tipo,
+      capacidad,
+      consumo_combustible_hora: parseFloat(consumo),
+      combustible_tipo: combustible,
+      costo_horario: parseFloat(costoHorario),
+      costo_equipo: parseFloat(costoEquipo),
+      año_compra: parseInt(anioCompra),
+      estado,
+      observaciones,
+      user_id: userId
+    }])
+    setNombre('')
+    setTipo('')
+    setCapacidad('')
+    setConsumo('')
+    setCombustible('Diesel')
+    setCostoHorario('')
+    setCostoEquipo('')
+    setAnioCompra('')
+    setEstado('Operativo')
+    setObservaciones('')
+    fetch()
+  }
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <input type="text" placeholder="Nombre (Tractor JD 5090)" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded" required />
+          <input type="text" placeholder="Tipo (Tractor, Pulverizador, etc)" value={tipo} onChange={(e) => setTipo(e.target.value)} className="w-full p-3 border rounded" required />
+          <input type="text" placeholder="Capacidad (500L, 5 surcos, etc)" value={capacidad} onChange={(e) => setCapacidad(e.target.value)} className="w-full p-3 border rounded" />
+          <input type="number" step="0.1" placeholder="Consumo L/hora" value={consumo} onChange={(e) => setConsumo(e.target.value)} className="w-full p-3 border rounded" />
+          <select value={combustible} onChange={(e) => setCombustible(e.target.value)} className="w-full p-3 border rounded">
+            <option value="Diesel">Diesel</option>
+            <option value="Gasolina">Gasolina</option>
+            <option value="Electricidad">Electricidad</option>
+          </select>
+          <input type="number" step="0.01" placeholder="Costo horario ($)" value={costoHorario} onChange={(e) => setCostoHorario(e.target.value)} className="w-full p-3 border rounded" />
+          <input type="number" step="0.01" placeholder="Costo equipo ($)" value={costoEquipo} onChange={(e) => setCostoEquipo(e.target.value)} className="w-full p-3 border rounded" />
+          <input type="number" placeholder="Año compra" value={anioCompra} onChange={(e) => setAnioCompra(e.target.value)} className="w-full p-3 border rounded" />
+          <select value={estado} onChange={(e) => setEstado(e.target.value)} className="w-full p-3 border rounded">
+            <option value="Operativo">Operativo</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Fuera de servicio">Fuera de servicio</option>
+          </select>
+        </div>
+        <textarea placeholder="Observaciones" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="w-full p-3 border rounded mb-4" rows="2"></textarea>
+        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Maquinaria</button>
+      </form>
+      <div className="space-y-2">
+        {items.map(m => <div key={m.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{m.nombre}</p><p className="text-sm text-[#6B5D45]">{m.tipo} | {m.capacidad} | ${m.costo_horario}/h | {m.estado}</p></div>)}
       </div>
     </div>
   )
