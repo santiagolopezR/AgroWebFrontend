@@ -197,25 +197,24 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 gap-6 mb-6">
         {/* GASTOS RECIENTES */}
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Recientes</h3>
-          {gastos.length === 0 ? (
-            <p className="text-[#6B5D45]">No hay gastos registrados</p>
-          ) : (
-            <div className="space-y-2">
-              {gastos.slice(0, 10).map(gasto => (
-                <div key={gasto.id} className="flex justify-between items-center p-2 bg-[#F5F2E6] rounded">
-                  <div>
-                    <p className="font-bold text-sm">{gasto.factura_numero}</p>
-                    <p className="text-xs text-[#6B5D45]">{gasto.fecha}</p>
-                  </div>
-                  <p className="font-bold text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          )}
+<div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+  <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Recientes</h3>
+  {gastos.length === 0 ? (
+    <p className="text-[#6B5D45]">No hay gastos registrados</p>
+  ) : (
+    <div className="space-y-2">
+      {Array.from(new Map(gastos.map(g => [g.factura_numero, g])).values()).slice(0, 10).map(gasto => (
+        <div key={gasto.id} className="flex justify-between items-center p-2 bg-[#F5F2E6] rounded">
+          <div>
+            <p className="font-bold text-sm">{gasto.factura_numero}</p>
+            <p className="text-xs text-[#6B5D45]">{gasto.fecha}</p>
+          </div>
+          <p className="font-bold text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString()}</p>
         </div>
-
+      ))}
+    </div>
+  )}
+</div>
         {/* RESUMEN MENSUAL */}
         <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
           <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📅 Gastos Últimos 6 Meses</h3>
