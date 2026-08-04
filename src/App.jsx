@@ -6,6 +6,7 @@ import RegistroActividad from './RegistroActividad'
 import GestionDatos from './GestionDatos'
 import ImportarLotes from './ImportarLotes'
 import Zafras from './Zafras'
+import RegistroGasto from './RegistroGasto'
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -67,7 +68,7 @@ export default function App() {
             <button
               onClick={() => setCurrentPage('gestiondatos')}
               className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
-                currentPage === 'configuracion'
+                currentPage === 'gestiondatos'
                   ? 'bg-[#1F3D2B] text-white'
                   : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
               }`}
@@ -91,7 +92,6 @@ export default function App() {
                   ? 'bg-[#1F3D2B] text-white'
                   : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
               }`}
-              
             >
               📥 Importar Lotes
             </button>
@@ -105,15 +105,26 @@ export default function App() {
             >
               📝 Registrar Actividad
             </button>
+            <button
+              onClick={() => setCurrentPage('gasto')}
+              className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
+                currentPage === 'gasto'
+                  ? 'bg-[#1F3D2B] text-white'
+                  : 'hover:bg-[#F5F2E6] text-[#1F3D2B]'
+              }`}
+            >
+              💰 Registrar Gasto
+            </button>
           </div>
         </div>
 
         <div className="flex-1">
           {currentPage === 'dashboard' && <Dashboard />}
-{currentPage === 'gestiondatos' && <GestionDatos />}
-{currentPage === 'zafras' && <Zafras />}
-{currentPage === 'importar' && <ImportarLotes />}
-{currentPage === 'registro' && <RegistroActividad />}
+          {currentPage === 'gestiondatos' && <GestionDatos />}
+          {currentPage === 'zafras' && <Zafras />}
+          {currentPage === 'importar' && <ImportarLotes />}
+          {currentPage === 'registro' && <RegistroActividad />}
+          {currentPage === 'gasto' && <RegistroGasto />}
         </div>
       </div>
     </div>
