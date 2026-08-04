@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import * as XLSX from 'xlsx'
 
 export default function RegistroGasto() {
   const [fincas, setFincas] = useState([])
@@ -18,6 +19,7 @@ export default function RegistroGasto() {
   const [items, setItems] = useState([])
   const [showModalProveedor, setShowModalProveedor] = useState(false)
   const [showModalProducto, setShowModalProducto] = useState(false)
+  const [showModalImport, setShowModalImport] = useState(false)
   const [modalProductoItemId, setModalProductoItemId] = useState(null)
   const [newProvNombre, setNewProvNombre] = useState('')
   const [newProvContacto, setNewProvContacto] = useState('')
@@ -26,6 +28,9 @@ export default function RegistroGasto() {
   const [newProdUnidad, setNewProdUnidad] = useState('')
   const [newProdPrecio, setNewProdPrecio] = useState('')
   const [newProdCategoria, setNewProdCategoria] = useState('')
+  const [importDatos, setImportDatos] = useState([])
+  const [importPreview, setImportPreview] = useState(false)
+  const [importLoading, setImportLoading] = useState(false)
 
   useEffect(() => {
     getUser()
@@ -51,25 +56,9 @@ export default function RegistroGasto() {
   }
 
   const fetchCategorias = async () => {
-  const { data } = await supabase
-    .from('api_categoria')
-    .select('*')
-    .or(`user_id.is.null,user_id.eq.${user}`)
-    .order('nombre')
-  
-  const unique = []
-  const nombres = new Set()
-  
-  data?.forEach(cat => {
-    const nombre = cat.nombre.trim()
-    if (!nombres.has(nombre)) {
-      nombres.add(nombre)
-      unique.push(cat)
-    }
-  })
-  
-  setCategorias(unique)
-}
+    const { data } = await supabase.from('api_categoria').select('*')
+    setCategorias(data || [])
+  }
 
   const fetchProductos = async () => {
     const { data } = await supabase.from('api_producto').select('*').eq('user_id', user)
@@ -234,6 +223,110 @@ export default function RegistroGasto() {
     return mapeo[categoriaNombre] || 1
   }
 
+  const handleImportFile = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const wb = XLSX.read(event.target.result, { type: 'binary' })
+          const ws = wb.Sheets[wb.SheetNames[0]]
+          const datos = XLSX.utils.sheet_to_json(ws)
+          setImportDatos(datos)
+          setImportPreview(true)
+        } catch (error) {
+          alert('Error al leer el archivo: ' + error.message)
+        }
+      }
+      reader.readAsBinaryString(file)
+    }
+  }
+
+  const handleImportExecute = async () => {
+    if (importDatos.length === 0) {
+      alert('No hay datos para importar')
+      return
+    }
+
+    setImportLoading(true)
+
+    try {
+      for (const row of importDatos) {
+        const fincaNombre = row['Finca']
+        const facturaNro = row['Factura']
+        const proveedorNombre = row['Proveedor']
+        const fechaRow = row['Fecha']
+        const categoria = row['Categoría']
+        const producto = row['Producto']
+        const descripcion = row['Descripción'] || ''
+        const cantidad = parseFloat(row['Cantidad']) || 0
+        const precioUnitario = parseFloat(row['Precio Unitario']) || 0
+        const ivaItem = parseFloat(row['IVA%']) || 19
+        const pagadoPorRow = row['Pagado Por'] || 'Santiago'
+
+        const finca = fincas.find(f => f.nombre.toLowerCase() === fincaNombre?.toLowerCase())
+        if (!finca) continue
+
+        let proveedorId = null
+        if (proveedorNombre) {
+          let prov = proveedores.find(p => p.nombre.toLowerCase() === proveedorNombre.toLowerCase())
+          if (!prov) {
+            const { data: newProv } = await supabase.from('api_proveedor').insert([{
+              nombre: proveedorNombre,
+              user_id: user
+            }]).select()
+            prov = newProv?.[0]
+          }
+          proveedorId = prov?.id
+        }
+
+        const total = cantidad * precioUnitario
+        const totalBruto = total
+        const totalIva = total * (ivaItem / 100)
+        const totalNeto = totalBruto + totalIva
+
+        const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
+          finca_id: finca.id,
+          factura_numero: facturaNro,
+          proveedor_id: proveedorId,
+          fecha: fechaRow,
+          iva_porcentaje: ivaItem,
+          total_bruto: totalBruto,
+          total_iva: totalIva,
+          total_neto: totalNeto,
+          pagado_por: pagadoPorRow,
+          user_id: user
+        }]).select()
+
+        if (errorGasto) continue
+
+        const gastoId = gasto[0].id
+        const cat = categorias.find(c => c.nombre.trim().toLowerCase() === categoria?.trim().toLowerCase())
+
+        if (cat) {
+          await supabase.from('api_finca_gasto_item').insert([{
+            gasto_id: gastoId,
+            tipo_costo_id: getCostoIdFromCategoria(cat.nombre),
+            descripcion: descripcion || producto,
+            cantidad: cantidad,
+            unidad: 'unidad',
+            precio_unitario: precioUnitario,
+            total: total
+          }])
+        }
+      }
+
+      alert(`✅ Importados ${importDatos.length} gastos`)
+      setImportDatos([])
+      setImportPreview(false)
+      setShowModalImport(false)
+    } catch (error) {
+      alert('Error: ' + error.message)
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
   const totalGasto = items.reduce((sum, item) => sum + (item.totalConIva || 0), 0)
 
   const handleSave = async (e) => {
@@ -296,7 +389,10 @@ export default function RegistroGasto() {
 
   return (
     <div className="p-8 max-w-full">
-      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">💰 Registrar Gasto</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-[#1F3D2B]">💰 Registrar Gasto</h2>
+        <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
+      </div>
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* ENCABEZADO HORIZONTAL */}
@@ -433,7 +529,7 @@ export default function RegistroGasto() {
             <input type="email" placeholder="Email" value={newProvEmail} onChange={(e) => setNewProvEmail(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-4" />
 
             <div className="flex gap-2">
-              <button onClick={createProveedor} className="flex-1 bg-green-600 text-white font-bold py-2 rounded">✅ Crear</button>
+              <button onClick={() => { createProveedor(); }} className="flex-1 bg-green-600 text-white font-bold py-2 rounded">✅ Crear</button>
               <button onClick={() => setShowModalProveedor(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cancelar</button>
             </div>
           </div>
@@ -455,6 +551,61 @@ export default function RegistroGasto() {
             <div className="flex gap-2">
               <button onClick={createProducto} className="flex-1 bg-green-600 text-white font-bold py-2 rounded">✅ Crear</button>
               <button onClick={() => setShowModalProducto(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL IMPORT */}
+      {showModalImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg border-4 border-[#1F3D2B] w-full max-w-4xl max-h-96 overflow-y-auto">
+            <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📊 Importar Excel</h3>
+
+            {!importPreview ? (
+              <div>
+                <p className="text-sm text-[#6B5D45] mb-4">Columnas requeridas: Finca | Factura | Proveedor | Fecha | Categoría | Producto | Descripción | Cantidad | Precio Unitario | IVA% | Pagado Por</p>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleImportFile}
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded"
+                />
+              </div>
+            ) : (
+              <div>
+                <table className="w-full text-xs border-collapse mb-4">
+                  <thead>
+                    <tr className="bg-[#F5F2E6]">
+                      {importDatos.length > 0 && Object.keys(importDatos[0]).map(key => (
+                        <th key={key} className="border p-1 text-left font-bold">{key}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importDatos.slice(0, 5).map((row, idx) => (
+                      <tr key={idx} className="border">
+                        {Object.values(row).map((val, i) => (
+                          <td key={i} className="border p-1">{val}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-sm text-[#6B5D45] mb-4">Mostrando 5 de {importDatos.length} registros</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              {importPreview && (
+                <button onClick={() => { setImportPreview(false); setImportDatos([]); }} className="flex-1 bg-gray-600 text-white font-bold py-2 rounded">← Volver</button>
+              )}
+              <button onClick={() => setShowModalImport(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cancelar</button>
+              {importPreview && (
+                <button onClick={handleImportExecute} disabled={importLoading} className="flex-1 bg-green-600 text-white font-bold py-2 rounded disabled:bg-gray-400">
+                  {importLoading ? '⏳...' : '✅ Importar'}
+                </button>
+              )}
             </div>
           </div>
         </div>
