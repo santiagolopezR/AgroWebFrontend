@@ -14,7 +14,7 @@ export default function GestionDatos() {
         <button onClick={() => setTab('cultivos')} className={`px-6 py-3 font-bold ${tab === 'cultivos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🌾 Cultivos</button>
         <button onClick={() => setTab('proveedores')} className={`px-6 py-3 font-bold ${tab === 'proveedores' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>👥 Proveedores</button>
         <button onClick={() => setTab('maquinaria')} className={`px-6 py-3 font-bold ${tab === 'maquinaria' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🚜 Maquinaria</button>
-        <button onClick={() => setTab('categorias')} className={`px-6 py-3 font-bold ${tab === 'categorias' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏷️ Categorías (Ver)</button>
+        <button onClick={() => setTab('categorias')} className={...}>🏷️ Categorías</button>
       </div>
 
       {tab === 'fincas' && <Fincas />}
@@ -320,6 +320,7 @@ function Maquinaria() {
 
 function Categorias() {
   const [items, setItems] = useState([])
+  const [nombre, setNombre] = useState('')
   const [userId, setUserId] = useState(null)
 
   useEffect(() => {
@@ -336,19 +337,78 @@ function Categorias() {
   }, [userId])
 
   const fetch = async () => {
-    const { data } = await supabase.from('api_categoria').select('*')
+    const { data } = await supabase.from('api_categoria').select('*').order('nombre')
     setItems(data || [])
+  }
+
+  const create = async (e) => {
+    e.preventDefault()
+    if (!nombre.trim()) {
+      alert('Ingresa nombre de categoría')
+      return
+    }
+
+    const { error } = await supabase.from('api_categoria').insert([{
+      nombre: nombre.trim(),
+      user_id: userId
+    }])
+
+    if (error) {
+      alert('Error: ' + error.message)
+      return
+    }
+
+    setNombre('')
+    fetch()
+  }
+
+  const deleteCategoria = async (id) => {
+    if (!confirm('¿Eliminar categoría?')) return
+    
+    const { error } = await supabase.from('api_categoria').delete().eq('id', id)
+    if (error) {
+      alert('Error: ' + error.message)
+      return
+    }
+    fetch()
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-100 p-4 rounded-lg border-2 border-blue-500">
-        <p className="text-blue-900 font-bold">ℹ️ Categorías se crean en "Registrar Gasto"</p>
-        <p className="text-sm text-blue-800">Aquí solo puedes ver las disponibles</p>
-      </div>
+      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+        <div className="flex gap-2">
+          <input 
+            type="text" 
+            placeholder="Nueva categoría (ej: Plaguicidas, Herramientas)" 
+            value={nombre} 
+            onChange={(e) => setNombre(e.target.value)} 
+            className="flex-1 p-3 border-2 border-[#D8D2BE] rounded" 
+            required 
+          />
+          <button className="bg-[#1F3D2B] text-white px-6 py-3 rounded font-bold">➕ Crear</button>
+        </div>
+      </form>
+
       <div className="space-y-2">
-        <h3 className="font-bold text-lg">Categorías Disponibles:</h3>
-        {items.map(c => <div key={c.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{c.nombre}</p></div>)}
+        <h3 className="font-bold text-lg">Categorías Disponibles ({items.length}):</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {items.map(c => (
+            <div key={c.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B] flex justify-between items-center">
+              <div>
+                <p className="font-bold">{c.nombre}</p>
+                <p className="text-xs text-[#6B5D45]">{c.user_id ? '👤 Personal' : '🌍 Predeterminada'}</p>
+              </div>
+              {c.user_id && (
+                <button 
+                  onClick={() => deleteCategoria(c.id)}
+                  className="text-red-600 font-bold hover:text-red-800"
+                >
+                  🗑️
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
