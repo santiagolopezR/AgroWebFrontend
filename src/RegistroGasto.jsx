@@ -13,14 +13,13 @@ export default function RegistroGasto() {
   const [proveedorId, setProveedorId] = useState('')
   const [fecha, setFecha] = useState('')
   const [pagadoPor, setPagadoPor] = useState('')
-  const [ivaPorc, setIvaPorc] = useState(19)
+  const [ivaGlobal, setIvaGlobal] = useState(19)
   
   const [items, setItems] = useState([])
-  const [showModalProducto, setShowModalProducto] = useState(false)
-  const [newProductoNombre, setNewProductoNombre] = useState('')
-  const [newProductoCategoria, setNewProductoCategoria] = useState('')
-  const [newProductoUnidad, setNewProductoUnidad] = useState('')
-  const [newProductoPrecio, setNewProductoPrecio] = useState('')
+  const [showModalProveedor, setShowModalProveedor] = useState(false)
+  const [newProvNombre, setNewProvNombre] = useState('')
+  const [newProvContacto, setNewProvContacto] = useState('')
+  const [newProvEmail, setNewProvEmail] = useState('')
 
   useEffect(() => {
     getUser()
@@ -61,7 +60,17 @@ export default function RegistroGasto() {
   }
 
   const addItem = () => {
-    setItems([...items, { id: Date.now(), categoriaId: '', productoId: '', descripcion: '', cantidad: '', precio: '', total: 0 }])
+    setItems([...items, { 
+      id: Date.now(), 
+      categoriaId: '', 
+      productoId: '', 
+      descripcion: '', 
+      cantidad: '', 
+      precioUnitario: '', 
+      total: 0, 
+      ivaItem: 19,
+      totalConIva: 0
+    }])
   }
 
   const removeItem = (id) => {
@@ -73,16 +82,34 @@ export default function RegistroGasto() {
       if (item.id === id) {
         const updated = { ...item, [field]: value }
         
-        if (field === 'cantidad' || field === 'precio') {
+        if (field === 'cantidad' || field === 'precioUnitario') {
           const cant = parseFloat(updated.cantidad) || 0
-          const precio = parseFloat(updated.precio) || 0
+          const precio = parseFloat(updated.precioUnitario) || 0
           updated.total = cant * precio
         }
-        
+
+        if (field === 'total' || field === 'cantidad') {
+          const cant = parseFloat(updated.cantidad) || 0
+          const total = parseFloat(updated.total) || 0
+          if (cant > 0 && field === 'total') {
+            updated.precioUnitario = (total / cant).toFixed(2)
+          }
+        }
+
+        if (field === 'ivaItem') {
+          const total = parseFloat(updated.total) || 0
+          const iva = parseFloat(value) || 0
+          updated.totalConIva = total + (total * (iva / 100))
+        } else {
+          const total = parseFloat(updated.total) || 0
+          const iva = parseFloat(updated.ivaItem) || 19
+          updated.totalConIva = total + (total * (iva / 100))
+        }
+
         if (field === 'productoId' && value) {
           const prod = productos.find(p => p.id === parseInt(value))
           if (prod) {
-            updated.precio = prod.precio_actual
+            updated.precioUnitario = prod.precio_actual
           }
         }
         
@@ -92,17 +119,16 @@ export default function RegistroGasto() {
     }))
   }
 
-  const createProducto = async () => {
-    if (!newProductoNombre || !newProductoCategoria || !newProductoUnidad || !newProductoPrecio) {
-      alert('Completa todos los campos')
+  const createProveedor = async () => {
+    if (!newProvNombre) {
+      alert('Ingresa nombre del proveedor')
       return
     }
 
-    const { error } = await supabase.from('api_producto').insert([{
-      nombre: newProductoNombre,
-      categoria_id: parseInt(newProductoCategoria),
-      unidad: newProductoUnidad,
-      precio_actual: parseFloat(newProductoPrecio),
+    const { error } = await supabase.from('api_proveedor').insert([{
+      nombre: newProvNombre,
+      contacto: newProvContacto,
+      email: newProvEmail,
       user_id: user
     }])
 
@@ -111,17 +137,47 @@ export default function RegistroGasto() {
       return
     }
 
-    setNewProductoNombre('')
-    setNewProductoCategoria('')
-    setNewProductoUnidad('')
-    setNewProductoPrecio('')
-    setShowModalProducto(false)
-    fetchProductos()
+    setNewProvNombre('')
+    setNewProvContacto('')
+    setNewProvEmail('')
+    setShowModalProveedor(false)
+    fetchProveedores()
   }
 
-  const totalBruto = items.reduce((sum, item) => sum + (item.total || 0), 0)
-  const totalIva = totalBruto * (ivaPorc / 100)
-  const totalNeto = totalBruto + totalIva
+  const createCategoria = async (nombre) => {
+    if (!nombre) return
+
+    const { error } = await supabase.from('api_categoria').insert([{
+      nombre: nombre,
+      user_id: user
+    }])
+
+    if (!error) {
+      fetchCategorias()
+      return true
+    }
+    return false
+  }
+
+  const createProducto = async (nombre, categoriaId, unidad, precio) => {
+    if (!nombre || !categoriaId || !unidad || !precio) return
+
+    const { data, error } = await supabase.from('api_producto').insert([{
+      nombre: nombre,
+      categoria_id: parseInt(categoriaId),
+      unidad: unidad,
+      precio_actual: parseFloat(precio),
+      user_id: user
+    }]).select()
+
+    if (!error && data) {
+      fetchProductos()
+      return data[0].id
+    }
+    return null
+  }
+
+  const totalGasto = items.reduce((sum, item) => sum + (item.totalConIva || 0), 0)
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -131,15 +187,18 @@ export default function RegistroGasto() {
       return
     }
 
+    const totalBruto = items.reduce((sum, item) => sum + (item.total || 0), 0)
+    const totalIvaCalc = items.reduce((sum, item) => sum + ((item.total || 0) * (item.ivaItem / 100)), 0)
+
     const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
       finca_id: parseInt(fincaId),
       factura_numero: factura,
       proveedor_id: proveedorId ? parseInt(proveedorId) : null,
       fecha: fecha,
-      iva_porcentaje: ivaPorc,
+      iva_porcentaje: ivaGlobal,
       total_bruto: totalBruto,
-      total_iva: totalIva,
-      total_neto: totalNeto,
+      total_iva: totalIvaCalc,
+      total_neto: totalBruto + totalIvaCalc,
       pagado_por: pagadoPor,
       user_id: user
     }]).select()
@@ -158,7 +217,7 @@ export default function RegistroGasto() {
       descripcion: item.descripcion,
       cantidad: parseFloat(item.cantidad),
       unidad: 'unidad',
-      precio_unitario: parseFloat(item.precio),
+      precio_unitario: parseFloat(item.precioUnitario),
       total: item.total
     }))
 
@@ -180,170 +239,142 @@ export default function RegistroGasto() {
 
   return (
     <div className="p-8 max-w-full">
-      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">💰 Registrar Gasto</h2>
+      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">💰 Registrar Gasto</h2>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* ENCABEZADO */}
-        <div className="bg-white p-6 rounded-lg border-4 border-[#1F3D2B]">
-          <h3 className="text-xl font-bold text-[#1F3D2B] mb-6">📝 Encabezado del Gasto</h3>
-          
-          <div className="grid grid-cols-5 gap-4 mb-4">
+        {/* ENCABEZADO HORIZONTAL */}
+        <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B]">
+          <div className="grid grid-cols-7 gap-3">
             <div>
-              <label className="block font-bold mb-2 text-[#1F3D2B]">Finca *</label>
-              <select value={fincaId} onChange={(e) => setFincaId(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg" required>
+              <label className="text-sm font-bold text-[#1F3D2B]">Finca *</label>
+              <select value={fincaId} onChange={(e) => setFincaId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
                 <option value="">Selecciona</option>
                 {fincas.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="block font-bold mb-2 text-[#1F3D2B]">Factura # *</label>
-              <input type="text" value={factura} onChange={(e) => setFactura(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg" placeholder="001-001-000001" required />
+              <label className="text-sm font-bold text-[#1F3D2B]">Factura # *</label>
+              <input type="text" value={factura} onChange={(e) => setFactura(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" placeholder="001-001-0001" required />
             </div>
 
             <div>
-              <label className="block font-bold mb-2 text-[#1F3D2B]">Proveedor</label>
-              <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg">
-                <option value="">Sin proveedor</option>
-                {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
+              <label className="text-sm font-bold text-[#1F3D2B]">Proveedor</label>
+              <div className="flex gap-1">
+                <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} className="flex-1 p-2 border-2 border-[#D8D2BE] rounded text-sm">
+                  <option value="">Sin prov</option>
+                  {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+                <button type="button" onClick={() => setShowModalProveedor(true)} className="bg-blue-600 text-white px-3 rounded font-bold text-sm">+</button>
+              </div>
             </div>
 
             <div>
-              <label className="block font-bold mb-2 text-[#1F3D2B]">Fecha *</label>
-              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg" required />
+              <label className="text-sm font-bold text-[#1F3D2B]">Fecha *</label>
+              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
             </div>
 
             <div>
-              <label className="block font-bold mb-2 text-[#1F3D2B]">Pagado Por *</label>
-              <select value={pagadoPor} onChange={(e) => setPagadoPor(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg" required>
+              <label className="text-sm font-bold text-[#1F3D2B]">Pagado Por *</label>
+              <select value={pagadoPor} onChange={(e) => setPagadoPor(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
                 <option value="">Selecciona</option>
                 <option value="Ganaderia OL">Ganaderia OL</option>
                 <option value="Santiago">Santiago</option>
               </select>
             </div>
-          </div>
 
-          <div>
-            <label className="block font-bold mb-2 text-[#1F3D2B]">IVA %</label>
-            <input type="number" value={ivaPorc} onChange={(e) => setIvaPorc(parseFloat(e.target.value))} className="w-32 p-3 border-2 border-[#D8D2BE] rounded-lg" />
-          </div>
-        </div>
-
-        {/* ITEMS */}
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-[#1F3D2B]">📋 Items del Gasto</h3>
-            <button type="button" onClick={addItem} className="bg-green-600 text-white px-4 py-2 rounded font-bold">➕ Agregar Item</button>
-          </div>
-
-          {items.length === 0 ? (
-            <p className="text-[#6B5D45]">Sin items. Haz click en "Agregar Item"</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
-                    <th className="p-2 text-left font-bold">Categoría</th>
-                    <th className="p-2 text-left font-bold">Producto</th>
-                    <th className="p-2 text-left font-bold">Descripción</th>
-                    <th className="p-2 text-left font-bold">Cantidad</th>
-                    <th className="p-2 text-left font-bold">Precio U</th>
-                    <th className="p-2 text-left font-bold">Total</th>
-                    <th className="p-2 text-center font-bold">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(item => (
-                    <tr key={item.id} className="border-b border-[#D8D2BE]">
-                      <td className="p-2">
-                        <select value={item.categoriaId} onChange={(e) => updateItem(item.id, 'categoriaId', e.target.value)} className="w-full p-2 border rounded text-sm" required>
-                          <option value="">Selecciona</option>
-                          {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                        </select>
-                      </td>
-                      <td className="p-2">
-                        <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="w-full p-2 border rounded text-sm">
-                          <option value="">Sin producto</option>
-                          {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                        </select>
-                      </td>
-                      <td className="p-2">
-                        <input type="text" value={item.descripcion} onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)} className="w-full p-2 border rounded text-sm" />
-                      </td>
-                      <td className="p-2">
-                        <input type="number" step="0.01" value={item.cantidad} onChange={(e) => updateItem(item.id, 'cantidad', e.target.value)} className="w-full p-2 border rounded text-sm" required />
-                      </td>
-                      <td className="p-2">
-                        <input type="number" step="0.01" value={item.precio} onChange={(e) => updateItem(item.id, 'precio', e.target.value)} className="w-full p-2 border rounded text-sm" required />
-                      </td>
-                      <td className="p-2 font-bold">
-                        ${item.total.toFixed(2)}
-                      </td>
-                      <td className="p-2 text-center">
-                        <button type="button" onClick={() => removeItem(item.id)} className="text-red-600 font-bold">❌</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              <label className="text-sm font-bold text-[#1F3D2B]">IVA Global %</label>
+              <input type="number" value={ivaGlobal} onChange={(e) => setIvaGlobal(parseFloat(e.target.value))} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
             </div>
-          )}
 
-          <button type="button" onClick={() => setShowModalProducto(true)} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm">
-            ➕ Crear Producto Nuevo
-          </button>
-        </div>
-
-        {/* TOTALES */}
-        <div className="bg-[#F5F2E6] p-6 rounded-lg border-4 border-[#1F3D2B]">
-          <div className="grid grid-cols-3 gap-6 text-lg font-bold">
-            <div className="text-center">
-              <p className="text-[#6B5D45]">Total Bruto</p>
-              <p className="text-[#1F3D2B] text-3xl">${totalBruto.toFixed(2)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-[#6B5D45]">IVA ({ivaPorc}%)</p>
-              <p className="text-[#1F3D2B] text-3xl">${totalIva.toFixed(2)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-[#6B5D45]">Total Neto</p>
-              <p className="text-[#1F3D2B] text-3xl">${totalNeto.toFixed(2)}</p>
+            <div className="flex items-end">
+              <button type="button" onClick={addItem} className="w-full bg-green-600 text-white px-3 py-2 rounded font-bold text-sm">➕ Item</button>
             </div>
           </div>
         </div>
 
-        <button type="submit" className="w-full bg-[#1F3D2B] text-white font-bold py-4 rounded-lg text-lg hover:bg-[#0F2116]">
+        {/* TABLA ITEMS HORIZONTAL */}
+        <div className="bg-white rounded-lg border-2 border-[#D8D2BE] overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
+                <th className="p-2 text-left font-bold">Categoría</th>
+                <th className="p-2 text-left font-bold">Producto</th>
+                <th className="p-2 text-left font-bold">Descripción</th>
+                <th className="p-2 text-center font-bold">Cantidad</th>
+                <th className="p-2 text-center font-bold">Precio U</th>
+                <th className="p-2 text-center font-bold">Total</th>
+                <th className="p-2 text-center font-bold">IVA %</th>
+                <th className="p-2 text-center font-bold">Total+IVA</th>
+                <th className="p-2 text-center font-bold">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => (
+                <tr key={item.id} className="border-b border-[#D8D2BE]">
+                  <td className="p-2">
+                    <select value={item.categoriaId} onChange={(e) => updateItem(item.id, 'categoriaId', e.target.value)} className="w-full p-1 border rounded text-xs" required>
+                      <option value="">Selecciona</option>
+                      {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </td>
+                  <td className="p-2">
+                    <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="w-full p-1 border rounded text-xs">
+                      <option value="">Selecciona</option>
+                      {item.categoriaId && productos.filter(p => p.categoria_id === parseInt(item.categoriaId)).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                  </td>
+                  <td className="p-2">
+                    <input type="text" value={item.descripcion} onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)} className="w-full p-1 border rounded text-xs" />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" step="0.01" value={item.cantidad} onChange={(e) => updateItem(item.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" step="0.01" value={item.precioUnitario} onChange={(e) => updateItem(item.id, 'precioUnitario', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" step="0.01" value={item.total} onChange={(e) => updateItem(item.id, 'total', e.target.value)} className="w-full p-1 border rounded text-xs text-center font-bold" />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" step="0.01" value={item.ivaItem} onChange={(e) => updateItem(item.id, 'ivaItem', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
+                  </td>
+                  <td className="p-2 text-center font-bold">
+                    ${item.totalConIva.toFixed(2)}
+                  </td>
+                  <td className="p-2 text-center">
+                    <button type="button" onClick={() => removeItem(item.id)} className="text-red-600 font-bold">❌</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* TOTAL */}
+        <div className="bg-[#F5F2E6] p-4 rounded-lg border-4 border-[#1F3D2B] text-right">
+          <p className="text-2xl font-bold text-[#1F3D2B]">TOTAL: ${totalGasto.toFixed(2)}</p>
+        </div>
+
+        <button type="submit" className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116]">
           ✅ Guardar Gasto
         </button>
       </form>
 
-      {/* MODAL CREAR PRODUCTO */}
-      {showModalProducto && (
+      {/* MODAL PROVEEDOR */}
+      {showModalProveedor && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-lg border-4 border-[#1F3D2B] w-96">
-            <h3 className="text-2xl font-bold text-[#1F3D2B] mb-6">➕ Crear Producto</h3>
+          <div className="bg-white p-6 rounded-lg border-4 border-[#1F3D2B] w-80">
+            <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">➕ Crear Proveedor</h3>
             
-            <div className="space-y-4">
-              <input type="text" placeholder="Nombre producto" value={newProductoNombre} onChange={(e) => setNewProductoNombre(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg" />
-              
-              <select value={newProductoCategoria} onChange={(e) => setNewProductoCategoria(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg">
-                <option value="">Selecciona Categoría</option>
-                {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
-              
-              <input type="text" placeholder="Unidad (L, kg, etc)" value={newProductoUnidad} onChange={(e) => setNewProductoUnidad(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg" />
-              
-              <input type="number" step="0.01" placeholder="Precio" value={newProductoPrecio} onChange={(e) => setNewProductoPrecio(e.target.value)} className="w-full p-3 border-2 border-[#D8D2BE] rounded-lg" />
-            </div>
+            <input type="text" placeholder="Nombre" value={newProvNombre} onChange={(e) => setNewProvNombre(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-3" />
+            <input type="text" placeholder="Contacto" value={newProvContacto} onChange={(e) => setNewProvContacto(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-3" />
+            <input type="email" placeholder="Email" value={newProvEmail} onChange={(e) => setNewProvEmail(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-4" />
 
-            <div className="flex gap-3 mt-6">
-              <button onClick={createProducto} className="flex-1 bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700">
-                ✅ Crear
-              </button>
-              <button onClick={() => setShowModalProducto(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded hover:bg-red-700">
-                ❌ Cancelar
-              </button>
+            <div className="flex gap-2">
+              <button onClick={createProveedor} className="flex-1 bg-green-600 text-white font-bold py-2 rounded">✅ Crear</button>
+              <button onClick={() => setShowModalProveedor(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cancelar</button>
             </div>
           </div>
         </div>
