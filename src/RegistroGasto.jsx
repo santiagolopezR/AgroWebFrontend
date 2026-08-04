@@ -212,7 +212,7 @@ export default function RegistroGasto() {
 
     const itemsInsert = items.map(item => ({
       gasto_id: gastoId,
-      tipo_costo_id: parseInt(item.categoriaId),
+      tipo_costo_id: parseInt(item.categoriaId),  // Las categorías ahora SON los tipos de costo
       producto_id: item.productoId ? parseInt(item.productoId) : null,
       descripcion: item.descripcion,
       cantidad: parseFloat(item.cantidad),
