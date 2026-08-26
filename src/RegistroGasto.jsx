@@ -212,13 +212,14 @@ export default function RegistroGasto() {
       'Semillas': 1,
       'Coadyuvantes': 1,
       'Nutricion animal': 1,
-      'Leche Compañia': 1,
+      'Leche Compañía': 1,
       'Maquinaria': 4,
       'Combustible': 3,
       'Mano de Obra': 2,
       'Mano_obra': 2,
       'Herramientas': 4,
-      'Servicios': 5
+      'Servicios': 5,
+      'Medicamentos': 1
     }
     return mapeo[categoriaNombre] || 1
   }
@@ -249,6 +250,8 @@ export default function RegistroGasto() {
     }
 
     setImportLoading(true)
+    let importados = 0
+    let duplicados = 0
 
     try {
       for (const row of importDatos) {
@@ -266,6 +269,21 @@ export default function RegistroGasto() {
 
         const finca = fincas.find(f => f.nombre.toLowerCase() === fincaNombre?.toLowerCase())
         if (!finca) continue
+
+        // PROTECCIÓN: Verificar si factura + finca YA EXISTEN
+        if (facturaNro) {
+          const { data: gastoExistente } = await supabase
+            .from('api_finca_gasto')
+            .select('id')
+            .eq('factura_numero', facturaNro)
+            .eq('finca_id', finca.id)
+            .single()
+
+          if (gastoExistente) {
+            duplicados++
+            continue
+          }
+        }
 
         let proveedorId = null
         if (proveedorNombre) {
@@ -287,7 +305,7 @@ export default function RegistroGasto() {
 
         const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
           finca_id: finca.id,
-          factura_numero: facturaNro,
+          factura_numero: facturaNro || null,
           proveedor_id: proveedorId,
           fecha: fechaRow,
           iva_porcentaje: ivaItem,
@@ -330,10 +348,15 @@ export default function RegistroGasto() {
             precio_unitario: precioUnitario,
             total: total
           }])
+
+          importados++
         }
       }
 
-      alert(`✅ Importados ${importDatos.length} gastos`)
+      let mensaje = `✅ Importados: ${importados}`
+      if (duplicados > 0) mensaje += ` | ⚠️ Duplicados saltados: ${duplicados}`
+      alert(mensaje)
+      
       setImportDatos([])
       setImportPreview(false)
       setShowModalImport(false)
@@ -352,8 +375,8 @@ export default function RegistroGasto() {
   const handleSave = async (e) => {
     e.preventDefault()
 
-    if (!fincaId || !factura || !fecha || !pagadoPor || items.length === 0) {
-      alert('Completa Finca, Factura, Fecha, Pagado Por e Items')
+    if (!fincaId || !fecha || !pagadoPor || items.length === 0) {
+      alert('Completa Finca, Fecha, Pagado Por e Items')
       return
     }
 
@@ -362,7 +385,7 @@ export default function RegistroGasto() {
 
     const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
       finca_id: parseInt(fincaId),
-      factura_numero: factura,
+      factura_numero: factura || null,
       proveedor_id: proveedorId ? parseInt(proveedorId) : null,
       fecha: fecha,
       iva_porcentaje: ivaGlobal,
@@ -426,8 +449,8 @@ export default function RegistroGasto() {
             </div>
 
             <div>
-              <label className="text-sm font-bold text-[#1F3D2B]">Factura # *</label>
-              <input type="text" value={factura} onChange={(e) => setFactura(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" placeholder="001-001-0001" required />
+              <label className="text-sm font-bold text-[#1F3D2B]">Factura #</label>
+              <input type="text" value={factura} onChange={(e) => setFactura(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" placeholder="001-001 (opcional)" />
             </div>
 
             <div>
@@ -583,7 +606,7 @@ export default function RegistroGasto() {
                   <p className="text-sm text-blue-800 mb-3">Tu archivo debe tener estas columnas EN ESTE ORDEN:</p>
                   <div className="bg-white p-3 rounded border-2 border-blue-300 text-xs font-mono">
                     <p><strong>1. Finca</strong> - Nombre exacto de la finca</p>
-                    <p><strong>2. Factura</strong> - Número de factura</p>
+                    <p><strong>2. Factura</strong> - Número de factura (OPCIONAL)</p>
                     <p><strong>3. Proveedor</strong> - Nombre del proveedor (opcional)</p>
                     <p><strong>4. Fecha</strong> - Formato YYYY-MM-DD</p>
                     <p><strong>5. Categoría</strong> - Ej: Herbicidas, Fertilizantes, Mano de Obra</p>
