@@ -1,45 +1,45 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import * as XLSX from 'xlsx'
 
 export default function RegistroActividad() {
-  const [user, setUser] = useState(null)
+  const [fincas, setFincas] = useState([])
   const [lotes, setLotes] = useState([])
-  const [maquinarias, setMaquinarias] = useState([])
-  const [productos, setProductos] = useState([])
   const [categorias, setCategorias] = useState([])
+  const [productos, setProductos] = useState([])
   const [tiposActividad, setTiposActividad] = useState([])
-  
-  const [loteId, setLoteId] = useState('')
+  const [costosFijos, setCostosFijos] = useState([])
+  const [user, setUser] = useState(null)
+
+  // FORM PRINCIPAL
+  const [fincaId, setFincaId] = useState('')
+  const [lotesSeleccionados, setLotesSeleccionados] = useState([])
   const [fecha, setFecha] = useState('')
-  const [zafraId, setZafraId] = useState('')
-  const [zafrasDisponibles, setZafrasDisponibles] = useState([])
-  const [tipoActividad, setTipoActividad] = useState('siembra')
+  const [tipoActividadId, setTipoActividadId] = useState('')
+  const [responsable, setResponsable] = useState('')
   
-  // Siembra
-  const [siebraSemilla, setSiebraSemilla] = useState('')
-  const [siebraDistancia, setSiebraDistancia] = useState('')
-  const [siebraProfundidad, setSiebraProfundidad] = useState('')
-  const [siebraProductos, setSiebraProductos] = useState([])
-  const [siebraMO, setSiebraMO] = useState('')
-  const [siebraMaquinaria, setSiebraMaquinaria] = useState('')
-  const [siebraObservaciones, setSiebraObservaciones] = useState('')
+  // ITEMS PRODUCTOS
+  const [items, setItems] = useState([])
   
-  // Cosecha
-  const [cosechaRendimiento, setCosechaRendimiento] = useState('')
-  const [cosechaPrecio, setCosechaPrecio] = useState('')
-  const [cosechaTransporte, setCosechaTransporte] = useState('')
-  const [cosechaMO, setCosechaMO] = useState('')
-  const [cosechaMaquinaria, setCosechaMaquinaria] = useState('')
-  const [cosechaObservaciones, setCosechaObservaciones] = useState('')
+  // JORNALES Y COMBUSTIBLE
+  const [jornales, setJornales] = useState('')
+  const [combustible, setCombustible] = useState('')
   
-  // Genérico
-  const [genericoProductos, setGenericoProductos] = useState([])
-  const [genericoMaquinaria, setGenericoMaquinaria] = useState('')
-  const [genericoCombustible, setGenericoCombustible] = useState('')
-  const [genericoMO, setGenericoMO] = useState('')
-  const [genericoCostos, setGenericoCostos] = useState([])
-  const [genericoObservaciones, setGenericoObservaciones] = useState('')
-  const [loading, setLoading] = useState(false)
+  // COSTOS ADICIONALES
+  const [costosAdicionales, setCostosAdicionales] = useState([])
+  
+  // MODALES
+  const [showModalProducto, setShowModalProducto] = useState(false)
+  const [showModalImport, setShowModalImport] = useState(false)
+  const [modalProductoItemId, setModalProductoItemId] = useState(null)
+  const [newProdNombre, setNewProdNombre] = useState('')
+  const [newProdUnidad, setNewProdUnidad] = useState('')
+  const [newProdPrecio, setNewProdPrecio] = useState('')
+  const [newProdCategoria, setNewProdCategoria] = useState('')
+  
+  // IMPORT
+  const [importDatos, setImportDatos] = useState([])
+  const [importPreview, setImportPreview] = useState(false)
 
   useEffect(() => {
     getUser()
@@ -52,22 +52,34 @@ export default function RegistroActividad() {
 
   useEffect(() => {
     if (user) {
-      fetchLotes()
-      fetchMaquinarias()
-      fetchProductos()
+      fetchFincas()
       fetchCategorias()
+      fetchProductos()
       fetchTiposActividad()
+      fetchCostosFijos()
     }
   }, [user])
 
-  const fetchLotes = async () => {
-    const { data } = await supabase.from('api_lote').select('*').eq('user_id', user)
+  useEffect(() => {
+    if (fincaId) {
+      fetchLotes(fincaId)
+    }
+  }, [fincaId])
+
+  // ==================== FETCHES ====================
+  const fetchFincas = async () => {
+    const { data } = await supabase.from('api_finca').select('*').eq('user_id', user)
+    setFincas(data || [])
+  }
+
+  const fetchLotes = async (fincaId) => {
+    const { data } = await supabase.from('api_lote').select('*').eq('finca_id', parseInt(fincaId))
     setLotes(data || [])
   }
 
-  const fetchMaquinarias = async () => {
-    const { data } = await supabase.from('api_maquinaria').select('*').eq('user_id', user)
-    setMaquinarias(data || [])
+  const fetchCategorias = async () => {
+    const { data } = await supabase.from('api_categoria').select('*')
+    setCategorias(data || [])
   }
 
   const fetchProductos = async () => {
@@ -75,483 +87,570 @@ export default function RegistroActividad() {
     setProductos(data || [])
   }
 
-  const fetchCategorias = async () => {
-    const { data } = await supabase.from('api_categoria').select('*')
-    const unique = []
-    const nombres = new Set()
-    data?.forEach(cat => {
-      const nombre = cat.nombre.trim()
-      if (!nombres.has(nombre)) {
-        nombres.add(nombre)
-        unique.push(cat)
-      }
-    })
-    setCategorias(unique)
-  }
-
   const fetchTiposActividad = async () => {
     const { data } = await supabase.from('api_tipoactividad').select('*')
     setTiposActividad(data || [])
   }
 
-  const getTipoActividadId = (nombre) => {
-    const tipo = tiposActividad.find(t => t.nombre.toLowerCase() === nombre.toLowerCase())
-    return tipo?.id || null
+  const fetchCostosFijos = async () => {
+    const { data } = await supabase.from('api_costo_fijo').select('*').eq('user_id', user).eq('activo', true)
+    setCostosFijos(data || [])
   }
 
-  const handleLoteChange = (newLoteId) => {
-    setLoteId(newLoteId)
-    setZafraId('')
-    setZafrasDisponibles([])
+  // ==================== ITEMS PRODUCTOS ====================
+  const addItem = () => {
+    setItems([...items, {
+      id: Date.now(),
+      categoriaId: '',
+      categoriaNombre: '',
+      productoId: '',
+      productoNombre: '',
+      descripcion: '',
+      cantidad: '',
+      precioUnitario: '',
+      total: 0,
+      dosisHa: 0
+    }])
   }
 
-  const handleFechaChange = async (newFecha) => {
-    setFecha(newFecha)
-    if (loteId && newFecha) {
-      await buscarZafras(loteId, newFecha)
-    }
+  const removeItem = (id) => {
+    setItems(items.filter(item => item.id !== id))
   }
 
-  const buscarZafras = async (lotId, fch) => {
-    const { data } = await supabase
-      .from('api_zafra')
-      .select('*')
-      .eq('lote_id', lotId)
-      .lte('fecha_inicio', fch)
-      .or(`fecha_fin.is.null,fecha_fin.gte.${fch}`)
-      .order('fecha_inicio', { ascending: false })
-      .limit(4)
+  const updateItem = (id, field, value) => {
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const updated = { ...item, [field]: value }
 
-    if (data && data.length > 0) {
-      setZafrasDisponibles(data)
-      setZafraId(data[0].id)
-    } else {
-      setZafrasDisponibles([])
-      setZafraId('')
-    }
+        // Si cambia categoría
+        if (field === 'categoriaId') {
+          const cat = categorias.find(c => c.id === parseInt(value))
+          updated.categoriaNombre = cat ? cat.nombre : ''
+        }
+
+        // Si selecciona producto
+        if (field === 'productoId' && value) {
+          const prod = productos.find(p => p.id === parseInt(value))
+          if (prod) {
+            updated.productoNombre = prod.nombre
+            updated.precioUnitario = prod.precio_actual
+          }
+        }
+
+        // Calcular TOTAL y DOSIS/ha
+        if (field === 'cantidad' || field === 'precioUnitario') {
+          const cant = parseFloat(updated.cantidad) || 0
+          const precio = parseFloat(updated.precioUnitario) || 0
+          updated.total = cant * precio
+
+          // Calcular dosis/ha usando lotes seleccionados
+          if (lotesSeleccionados.length > 0) {
+            const lotesSelec = lotes.filter(l => lotesSeleccionados.includes(l.id))
+            const totalHa = lotesSelec.reduce((sum, l) => sum + (l.area_hectareas || 0), 0) || 1
+            updated.dosisHa = (cant / totalHa).toFixed(2)
+          }
+        }
+
+        return updated
+      }
+      return item
+    }))
   }
 
-  const addProductoGenerico = () => {
-    setGenericoProductos([...genericoProductos, { id: Date.now(), productoId: '', cantidad: '', dosis: '' }])
+  const openCreateProductoModal = (itemId, catNombre) => {
+    setModalProductoItemId(itemId)
+    setNewProdCategoria(catNombre)
+    setShowModalProducto(true)
   }
 
-  const removeProductoGenerico = (id) => {
-    setGenericoProductos(genericoProductos.filter(p => p.id !== id))
-  }
-
-  const updateProductoGenerico = (id, field, value) => {
-    setGenericoProductos(genericoProductos.map(p => p.id === id ? { ...p, [field]: value } : p))
-  }
-
-  const addCostoGenerico = () => {
-    setGenericoCostos([...genericoCostos, { id: Date.now(), descripcion: '', cantidad: '', valor: '' }])
-  }
-
-  const removeCostoGenerico = (id) => {
-    setGenericoCostos(genericoCostos.filter(c => c.id !== id))
-  }
-
-  const updateCostoGenerico = (id, field, value) => {
-    setGenericoCostos(genericoCostos.map(c => c.id === id ? { ...c, [field]: value } : c))
-  }
-
-  const handleSave = async (e) => {
-    e.preventDefault()
-
-    if (!loteId || !fecha || !zafraId) {
-      alert('Completa Lote, Fecha y Zafra')
+  const createProducto = async () => {
+    if (!newProdNombre || !newProdUnidad || !newProdPrecio || !newProdCategoria) {
+      alert('Completa todos los campos')
       return
     }
 
-    setLoading(true)
+    const { data, error } = await supabase.from('api_producto').insert([{
+      nombre: newProdNombre,
+      categoria: newProdCategoria,
+      unidad: newProdUnidad,
+      precio_actual: parseFloat(newProdPrecio),
+      user_id: user
+    }]).select()
+
+    if (error) {
+      alert('Error: ' + error.message)
+      return
+    }
+
+    setNewProdNombre('')
+    setNewProdUnidad('')
+    setNewProdPrecio('')
+    setNewProdCategoria('')
+    setShowModalProducto(false)
+
+    fetchProductos()
+  }
+
+  // ==================== COSTOS ADICIONALES ====================
+  const addCostoAdicional = () => {
+    setCostosAdicionales([...costosAdicionales, {
+      id: Date.now(),
+      costo_fijo_id: '',
+      costo_fijo_nombre: '',
+      costo_fijo_unidad: '',
+      cantidad: '',
+      valor_unitario: 0,
+      valor_total: 0
+    }])
+  }
+
+  const removeCostoAdicional = (id) => {
+    setCostosAdicionales(costosAdicionales.filter(c => c.id !== id))
+  }
+
+  const updateCostoAdicional = (id, field, value) => {
+    setCostosAdicionales(costosAdicionales.map(c => {
+      if (c.id === id) {
+        const updated = { ...c, [field]: value }
+
+        // Si selecciona un costo fijo
+        if (field === 'costo_fijo_id' && value) {
+          const cf = costosFijos.find(x => x.id === parseInt(value))
+          updated.costo_fijo_nombre = cf?.nombre
+          updated.costo_fijo_unidad = cf?.unidad
+          updated.valor_unitario = cf?.valor_unitario
+        }
+
+        // Calcula total
+        if (field === 'cantidad' || field === 'costo_fijo_id') {
+          updated.valor_total = updated.valor_unitario * (parseFloat(updated.cantidad) || 0)
+        }
+
+        return updated
+      }
+      return c
+    }))
+  }
+
+  // ==================== IMPORT ====================
+  const handleImportFile = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const wb = XLSX.read(event.target.result, { type: 'binary' })
+          const ws = wb.Sheets[wb.SheetNames[0]]
+          const datos = XLSX.utils.sheet_to_json(ws)
+          setImportDatos(datos)
+          setImportPreview(true)
+        } catch (error) {
+          alert('Error al leer el archivo: ' + error.message)
+        }
+      }
+      reader.readAsBinaryString(file)
+    }
+  }
+
+  // ==================== GUARDAR ACTIVIDAD ====================
+  const handleSave = async (e) => {
+    e.preventDefault()
+
+    if (!fincaId || !fecha || lotesSeleccionados.length === 0 || !tipoActividadId || items.length === 0) {
+      alert('Completa: Finca, Fecha, Lotes, Tipo Actividad e Items')
+      return
+    }
 
     try {
-      let totalMO = 0
-      let totalMaquina = 0
-      let totalCombustible = 0
-      let totalCostos = 0
-      let tipoActividadId = null
-      let observaciones = ''
-      let tipoMaquina = ''
-      let cantidadCombustible = 0
-      let horasMaquina = 0
+      // Obtener costos fijos por nombre
+      const costoJornal = costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')
+      const costoCombustibleCosto = costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')
 
-      if (tipoActividad === 'siembra') {
-        tipoActividadId = getTipoActividadId('Siembra')
-        totalMO = parseFloat(siebraMO || 0) * 50000 // Asume $50k por jornal
-        tipoMaquina = siebraMaquinaria ? 'Tractor' : ''
-        horasMaquina = siebraMaquinaria ? 2 : 0
-        totalMaquina = horasMaquina * 80000 // Asume $80k por hora
-        observaciones = `Semilla: ${siebraSemilla}, Distancia: ${siebraDistancia}cm, Profundidad: ${siebraProfundidad}cm. ${siebraObservaciones}`
-      } else if (tipoActividad === 'cosecha') {
-        tipoActividadId = getTipoActividadId('Cosecha')
-        totalMO = parseFloat(cosechaMO || 0) * 50000
-        tipoMaquina = cosechaMaquinaria ? 'Cosechadora' : ''
-        horasMaquina = cosechaMaquinaria ? 3 : 0
-        totalMaquina = horasMaquina * 120000
-        observaciones = `Rendimiento: ${cosechaRendimiento}kg, Precio: $${cosechaPrecio}/kg, Transporte: ${cosechaTransporte}km. ${cosechaObservaciones}`
-      } else {
-        // Genérico: Fumigación, Fertilización, Riego, Arar, Desmalezar, Otro
-        const mapeoTipos = {
-          'fumigacion': 'Fumigación',
-          'fertilizacion': 'Fertilización',
-          'riego': 'Riego',
-          'arar': 'Arar',
-          'desmalezar': 'Desmalezar',
-          'otro': 'Otro'
-        }
-        tipoActividadId = getTipoActividadId(mapeoTipos[tipoActividad])
-        totalMO = parseFloat(genericoMO || 0) * 50000
-        cantidadCombustible = parseFloat(genericoCombustible || 0)
-        totalCombustible = cantidadCombustible * 8000 // Asume $8k por litro
-        totalCostos = genericoCostos.reduce((sum, c) => sum + (parseFloat(c.valor) || 0), 0)
-        tipoMaquina = genericoMaquinaria ? 'Pulverizador' : ''
-        observaciones = genericoObservaciones
-      }
+      const totalJornales = (parseFloat(jornales) || 0) * (costoJornal?.valor_unitario || 0)
+      const totalCombustible = (parseFloat(combustible) || 0) * (costoCombustibleCosto?.valor_unitario || 0)
+      const totalProductos = items.reduce((sum, item) => sum + (item.total || 0), 0)
+      const totalAdicionales = costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0)
 
-      const costo_total = totalMO + totalMaquina + totalCombustible + totalCostos
+      const costoTotal = totalProductos + totalJornales + totalCombustible + totalAdicionales
 
-      const { data: actividad, error: errorActividad } = await supabase
+      // Crear actividad
+      const { data: actividades, error: errorActividad } = await supabase
         .from('api_actividad')
         .insert([{
+          finca_id: parseInt(fincaId),
           fecha: fecha,
-          responsable: 'Usuario',
-          observaciones: observaciones,
-          tipo_id: tipoActividadId,
-          user_id: user,
-          zafra_id: parseInt(zafraId),
-          horas_trabajo: tipoActividad === 'siembra' ? 8 : tipoActividad === 'cosecha' ? 12 : 6,
-          valor_jornal: 50000,
-          total_mano_obra: totalMO,
-          tipo_maquina: tipoMaquina,
-          horas_maquina: horasMaquina,
-          valor_hora_maquina: tipoMaquina ? 80000 : 0,
-          total_maquina: totalMaquina,
-          tipo_combustible: 'Diesel',
-          cantidad_combustible: cantidadCombustible,
-          precio_combustible: cantidadCombustible > 0 ? 8000 : 0,
-          total_combustible: totalCombustible,
-          costos_adicionales: totalCostos,
-          costo_total: costo_total
+          tipo_id: parseInt(tipoActividadId),
+          responsable: responsable,
+          jornales_cantidad: parseFloat(jornales) || 0,
+          costo_total: costoTotal,
+          detalle_costos: {
+            productos: totalProductos,
+            jornales: totalJornales,
+            combustible: totalCombustible,
+            adicionales: totalAdicionales
+          },
+          user_id: user
         }])
         .select()
 
-      if (errorActividad) {
-        alert('Error: ' + errorActividad.message)
-        setLoading(false)
-        return
+      if (errorActividad) throw errorActividad
+
+      const actividadId = actividades[0].id
+
+      // Guardar items de productos
+      for (const item of items) {
+        await supabase.from('api_actividad_producto').insert([{
+          actividad_id: actividadId,
+          producto_id: item.productoId ? parseInt(item.productoId) : null,
+          cantidad_aplicada: parseFloat(item.cantidad),
+          dosis_por_hectarea: parseFloat(item.dosisHa),
+          precio_unitario: parseFloat(item.precioUnitario),
+          total: item.total
+        }])
       }
 
-      const actividadId = actividad[0].id
+      // Guardar costos adicionales
+      for (const costo of costosAdicionales) {
+        await supabase.from('api_costo_adicional').insert([{
+          actividad_id: actividadId,
+          costo_fijo_id: parseInt(costo.costo_fijo_id),
+          cantidad: parseFloat(costo.cantidad),
+          valor_total: costo.valor_total,
+          user_id: user
+        }])
+      }
 
-      // Guardar productos según tipo
-      if (tipoActividad === 'siembra' && siebraProductos.length > 0) {
-        const productosInsert = siebraProductos.map(p => ({
+      // Guardar vinculación lotes-actividad
+      for (const loteId of lotesSeleccionados) {
+        await supabase.from('api_actividad_lote').insert([{
           actividad_id: actividadId,
-          producto_id: parseInt(p.productoId),
-          cantidad: parseFloat(p.cantidad)
-        }))
-        await supabase.from('api_actividad_producto').insert(productosInsert)
-      } else if (['fumigacion', 'fertilizacion', 'riego', 'arar', 'desmalezar', 'otro'].includes(tipoActividad) && genericoProductos.length > 0) {
-        const productosInsert = genericoProductos.map(p => ({
-          actividad_id: actividadId,
-          producto_id: parseInt(p.productoId),
-          cantidad: parseFloat(p.cantidad)
-        }))
-        await supabase.from('api_actividad_producto').insert(productosInsert)
+          lote_id: parseInt(loteId),
+          user_id: user
+        }])
       }
 
       alert('✅ Actividad registrada exitosamente')
       
-      // Limpiar formulario
-      setLoteId('')
+      // Limpiar
+      setFincaId('')
+      setLotesSeleccionados([])
       setFecha('')
-      setZafraId('')
-      setSiebraSemilla('')
-      setSiebraDistancia('')
-      setSiebraProfundidad('')
-      setSiebraProductos([])
-      setSiebraMO('')
-      setSiebraMaquinaria('')
-      setSiebraObservaciones('')
-      setCosechaRendimiento('')
-      setCosechaPrecio('')
-      setCosechaTransporte('')
-      setCosechaMO('')
-      setCosechaMaquinaria('')
-      setCosechaObservaciones('')
-      setGenericoProductos([])
-      setGenericoMaquinaria('')
-      setGenericoCombustible('')
-      setGenericoMO('')
-      setGenericoCostos([])
-      setGenericoObservaciones('')
-
+      setTipoActividadId('')
+      setResponsable('')
+      setItems([])
+      setJornales('')
+      setCombustible('')
+      setCostosAdicionales([])
     } catch (error) {
       alert('Error: ' + error.message)
-    } finally {
-      setLoading(false)
     }
   }
 
   return (
     <div className="p-8 max-w-full">
-      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">📝 Registrar Actividad</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-[#1F3D2B]">📊 Registro de Actividad</h2>
+        <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
+      </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* ENCABEZADO - LOTE + FECHA + ZAFRA */}
+        {/* ENCABEZADO */}
         <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B]">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-4 gap-3 mb-4">
             <div>
-              <label className="text-sm font-bold text-[#1F3D2B]">Lote *</label>
-              <select value={loteId} onChange={(e) => handleLoteChange(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
+              <label className="text-sm font-bold text-[#1F3D2B]">Finca *</label>
+              <select value={fincaId} onChange={(e) => setFincaId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
                 <option value="">Selecciona</option>
-                {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre} ({l.superficie} ha)</option>)}
+                {fincas.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
               </select>
             </div>
 
             <div>
               <label className="text-sm font-bold text-[#1F3D2B]">Fecha *</label>
-              <input type="date" value={fecha} onChange={(e) => handleFechaChange(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-[#1F3D2B]">Zafra *</label>
-              <select value={zafraId} onChange={(e) => setZafraId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
-                <option value="">Selecciona</option>
-                {zafrasDisponibles.map(z => <option key={z.id} value={z.id}>Zafra {z.numero_zafra} ({z.estado})</option>)}
-              </select>
+              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
             </div>
 
             <div>
               <label className="text-sm font-bold text-[#1F3D2B]">Tipo Actividad *</label>
-              <select value={tipoActividad} onChange={(e) => setTipoActividad(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
-                <option value="siembra">🌱 Siembra</option>
-                <option value="cosecha">🌾 Cosecha</option>
-                <option value="fumigacion">💨 Fumigación</option>
-                <option value="fertilizacion">🥗 Fertilización</option>
-                <option value="riego">💧 Riego</option>
-                <option value="arar">🚜 Arar</option>
-                <option value="desmalezar">🌿 Desmalezar</option>
-                <option value="otro">📋 Otro</option>
+              <select value={tipoActividadId} onChange={(e) => setTipoActividadId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
+                <option value="">Selecciona</option>
+                {tiposActividad.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
               </select>
             </div>
+
+            <div>
+              <label className="text-sm font-bold text-[#1F3D2B]">Responsable</label>
+              <input type="text" value={responsable} onChange={(e) => setResponsable(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" placeholder="Nombre" />
+            </div>
+          </div>
+
+          {/* LOTES MÚLTIPLES */}
+          <div>
+            <label className="text-sm font-bold text-[#1F3D2B] mb-2 block">Lotes * (Selecciona múltiples)</label>
+            <div className="grid grid-cols-4 gap-2">
+              {lotes.map(l => (
+                <label key={l.id} className="flex items-center p-2 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={lotesSeleccionados.includes(l.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setLotesSeleccionados([...lotesSeleccionados, l.id])
+                      } else {
+                        setLotesSeleccionados(lotesSeleccionados.filter(id => id !== l.id))
+                      }
+                    }}
+                    className="mr-2"
+                  />
+                  <span className="text-sm font-bold">{l.nombre} ({l.area_hectareas}ha)</span>
+                </label>
+              ))}
+            </div>
+            {lotesSeleccionados.length > 0 && (
+              <p className="text-xs text-green-600 mt-2">✅ {lotesSeleccionados.length} lote(s) seleccionado(s)</p>
+            )}
           </div>
         </div>
 
-        {/* SIEMBRA */}
-        {tipoActividad === 'siembra' && (
-          <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] space-y-4">
-            <h3 className="text-xl font-bold text-[#1F3D2B]">🌱 Formulario Siembra</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold mb-1">Semilla/Variedad</label>
-                <input type="text" value={siebraSemilla} onChange={(e) => setSiebraSemilla(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Distancia Surcos (cm)</label>
-                <input type="number" step="0.1" value={siebraDistancia} onChange={(e) => setSiebraDistancia(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Profundidad (cm)</label>
-                <input type="number" step="0.1" value={siebraProfundidad} onChange={(e) => setSiebraProfundidad(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Mano de Obra (jornales)</label>
-                <input type="number" step="0.1" value={siebraMO} onChange={(e) => setSiebraMO(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Maquinaria</label>
-                <select value={siebraMaquinaria} onChange={(e) => setSiebraMaquinaria(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm">
-                  <option value="">Sin maquinaria</option>
-                  {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Observaciones</label>
-                <input type="text" value={siebraObservaciones} onChange={(e) => setSiebraObservaciones(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold mb-2">Productos (Semillas, Fertilizantes)</label>
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#F5F2E6]">
-                    <th className="border p-2 text-left">Producto</th>
-                    <th className="border p-2 text-center">Cantidad</th>
-                    <th className="border p-2 text-center">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {siebraProductos.map(p => (
-                    <tr key={p.id} className="border">
-                      <td className="border p-2">
-                        <select value={p.productoId} onChange={(e) => setSiebraProductos(siebraProductos.map(x => x.id === p.id ? { ...x, productoId: e.target.value } : x))} className="w-full p-1 border rounded text-xs">
+        {/* PRODUCTOS */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-bold text-[#1F3D2B]">Productos Aplicados</h3>
+            <button type="button" onClick={addItem} className="bg-green-600 text-white px-4 py-2 rounded font-bold text-sm">➕ Item</button>
+          </div>
+          
+          <div className="bg-white rounded-lg border-2 border-[#D8D2BE] overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
+                  <th className="p-2 text-left font-bold">Categoría</th>
+                  <th className="p-2 text-left font-bold">Producto</th>
+                  <th className="p-2 text-left font-bold">Descripción</th>
+                  <th className="p-2 text-center font-bold">Cantidad</th>
+                  <th className="p-2 text-center font-bold">Precio U</th>
+                  <th className="p-2 text-center font-bold">Total</th>
+                  <th className="p-2 text-center font-bold">Dosis/ha</th>
+                  <th className="p-2 text-center font-bold">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id} className="border-b border-[#D8D2BE]">
+                    <td className="p-2">
+                      <select value={item.categoriaId} onChange={(e) => updateItem(item.id, 'categoriaId', e.target.value)} className="w-full p-1 border rounded text-xs" required>
+                        <option value="">Selecciona</option>
+                        {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                      </select>
+                    </td>
+                    <td className="p-2">
+                      <div className="flex gap-1">
+                        <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="flex-1 p-1 border rounded text-xs">
                           <option value="">Selecciona</option>
-                          {productos.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
+                          {item.categoriaNombre && productos.filter(p => p.categoria?.toLowerCase().trim() === item.categoriaNombre?.toLowerCase().trim()).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                         </select>
-                      </td>
-                      <td className="border p-2">
-                        <input type="number" step="0.01" value={p.cantidad} onChange={(e) => setSiebraProductos(siebraProductos.map(x => x.id === p.id ? { ...x, cantidad: e.target.value } : x))} className="w-full p-1 border rounded text-xs text-center" />
-                      </td>
-                      <td className="border p-2 text-center">
-                        <button type="button" onClick={() => setSiebraProductos(siebraProductos.filter(x => x.id !== p.id))} className="text-red-600 font-bold">❌</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button type="button" onClick={() => setSiebraProductos([...siebraProductos, { id: Date.now(), productoId: '', cantidad: '' }])} className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">➕ Agregar Producto</button>
-            </div>
-          </div>
-        )}
-
-        {/* COSECHA */}
-        {tipoActividad === 'cosecha' && (
-          <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] space-y-4">
-            <h3 className="text-xl font-bold text-[#1F3D2B]">🌾 Formulario Cosecha</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold mb-1">Rendimiento (kg)</label>
-                <input type="number" step="0.01" value={cosechaRendimiento} onChange={(e) => setCosechaRendimiento(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Precio Venta ($/kg)</label>
-                <input type="number" step="0.01" value={cosechaPrecio} onChange={(e) => setCosechaPrecio(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Transporte (km)</label>
-                <input type="number" step="0.1" value={cosechaTransporte} onChange={(e) => setCosechaTransporte(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Mano de Obra (jornales)</label>
-                <input type="number" step="0.1" value={cosechaMO} onChange={(e) => setCosechaMO(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Maquinaria</label>
-                <select value={cosechaMaquinaria} onChange={(e) => setCosechaMaquinaria(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm">
-                  <option value="">Sin maquinaria</option>
-                  {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Observaciones</label>
-                <input type="text" value={cosechaObservaciones} onChange={(e) => setCosechaObservaciones(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-            </div>
-
-            <div className="bg-[#F5F2E6] p-4 rounded border-2 border-[#1F3D2B]">
-              <p className="text-sm"><strong>Ingresos Totales:</strong> ${(parseFloat(cosechaRendimiento || 0) * parseFloat(cosechaPrecio || 0)).toFixed(2)}</p>
-            </div>
-          </div>
-        )}
-
-        {/* GENÉRICO */}
-        {['fumigacion', 'fertilizacion', 'riego', 'arar', 'desmalezar', 'otro'].includes(tipoActividad) && (
-          <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] space-y-4">
-            <h3 className="text-xl font-bold text-[#1F3D2B]">📋 Detalles Actividad</h3>
-            
-            <div>
-              <label className="block text-sm font-bold mb-2">Productos</label>
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#F5F2E6]">
-                    <th className="border p-2 text-left">Producto</th>
-                    <th className="border p-2 text-center">Cantidad</th>
-                    <th className="border p-2 text-center">Dosis/ha</th>
-                    <th className="border p-2 text-center">Acción</th>
+                        <button type="button" onClick={() => openCreateProductoModal(item.id, item.categoriaNombre)} disabled={!item.categoriaNombre} className="bg-blue-600 text-white px-2 rounded font-bold text-xs disabled:bg-gray-400">+</button>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <input type="text" value={item.descripcion} onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)} className="w-full p-1 border rounded text-xs" />
+                    </td>
+                    <td className="p-2">
+                      <input type="number" step="0.01" value={item.cantidad} onChange={(e) => updateItem(item.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
+                    </td>
+                    <td className="p-2">
+                      <input type="number" step="0.01" value={item.precioUnitario} onChange={(e) => updateItem(item.id, 'precioUnitario', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
+                    </td>
+                    <td className="p-2 text-center font-bold text-sm">
+                      ${item.total.toFixed(2)}
+                    </td>
+                    <td className="p-2 text-center font-bold text-sm bg-[#F5F2E6]">
+                      {item.dosisHa}
+                    </td>
+                    <td className="p-2 text-center">
+                      <button type="button" onClick={() => removeItem(item.id)} className="text-red-600 font-bold">❌</button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {genericoProductos.map(p => (
-                    <tr key={p.id} className="border">
-                      <td className="border p-2">
-                        <select value={p.productoId} onChange={(e) => updateProductoGenerico(p.id, 'productoId', e.target.value)} className="w-full p-1 border rounded text-xs">
-                          <option value="">Selecciona</option>
-                          {productos.map(pr => <option key={pr.id} value={pr.id}>{pr.nombre}</option>)}
-                        </select>
-                      </td>
-                      <td className="border p-2">
-                        <input type="number" step="0.01" value={p.cantidad} onChange={(e) => updateProductoGenerico(p.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
-                      </td>
-                      <td className="border p-2">
-                        <input type="text" value={p.dosis} onChange={(e) => updateProductoGenerico(p.id, 'dosis', e.target.value)} className="w-full p-1 border rounded text-xs text-center" placeholder="L/ha" />
-                      </td>
-                      <td className="border p-2 text-center">
-                        <button type="button" onClick={() => removeProductoGenerico(p.id)} className="text-red-600 font-bold">❌</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button type="button" onClick={addProductoGenerico} className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">➕ Agregar Producto</button>
-            </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-bold mb-1">Maquinaria</label>
-                <select value={genericoMaquinaria} onChange={(e) => setGenericoMaquinaria(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm">
-                  <option value="">Sin maquinaria</option>
-                  {maquinarias.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
-                </select>
+        {/* JORNALES Y COMBUSTIBLE */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
+            <h4 className="font-bold text-[#1F3D2B] mb-3">👷 Jornales</h4>
+            <input type="number" step="0.01" value={jornales} onChange={(e) => setJornales(e.target.value)} placeholder="# jornales" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm mb-2" />
+            {costosFijos.find(c => c.nombre.toLowerCase() === 'jornal') && (
+              <div className="text-sm">
+                <p className="bg-[#F5F2E6] p-2 rounded font-bold">
+                  <span>Total:</span> ${((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)).toLocaleString()}
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Combustible (L)</label>
-                <input type="number" step="0.1" value={genericoCombustible} onChange={(e) => setGenericoCombustible(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1">Mano de Obra (jornales)</label>
-                <input type="number" step="0.1" value={genericoMO} onChange={(e) => setGenericoMO(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
-              </div>
-            </div>
+            )}
+            {!costosFijos.find(c => c.nombre.toLowerCase() === 'jornal') && (
+              <p className="text-xs text-red-600">⚠️ Define "Jornal" en Costos Fijos</p>
+            )}
+          </div>
 
+          <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
+            <h4 className="font-bold text-[#1F3D2B] mb-3">⛽ Combustible</h4>
+            <input type="number" step="0.01" value={combustible} onChange={(e) => setCombustible(e.target.value)} placeholder="Litros" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm mb-2" />
+            {costosFijos.find(c => c.nombre.toLowerCase() === 'combustible') && (
+              <div className="text-sm">
+                <p className="bg-[#F5F2E6] p-2 rounded font-bold">
+                  <span>Total:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString()}
+                </p>
+              </div>
+            )}
+            {!costosFijos.find(c => c.nombre.toLowerCase() === 'combustible') && (
+              <p className="text-xs text-red-600">⚠️ Define "Combustible" en Costos Fijos</p>
+            )}
+          </div>
+        </div>
+
+        {/* COSTOS ADICIONALES */}
+        <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-bold text-[#1F3D2B]">💰 Costos Adicionales</h4>
+            <button type="button" onClick={addCostoAdicional} className="bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">+ Agregar</button>
+          </div>
+
+          <div className="space-y-3">
+            {costosAdicionales.map(costo => (
+              <div key={costo.id} className="p-3 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  <select 
+                    value={costo.costo_fijo_id} 
+                    onChange={(e) => updateCostoAdicional(costo.id, 'costo_fijo_id', e.target.value)} 
+                    className="col-span-2 p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                  >
+                    <option value="">Selecciona costo</option>
+                    {costosFijos.filter(c => c.nombre.toLowerCase() !== 'jornal' && c.nombre.toLowerCase() !== 'combustible').map(c => (
+                      <option key={c.id} value={c.id}>{c.nombre} (${c.valor_unitario}{c.unidad})</option>
+                    ))}
+                  </select>
+                  
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    value={costo.cantidad} 
+                    onChange={(e) => updateCostoAdicional(costo.id, 'cantidad', e.target.value)} 
+                    placeholder="Cantidad" 
+                    className="p-2 border-2 border-[#D8D2BE] rounded text-sm" 
+                  />
+                  
+                  <button type="button" onClick={() => removeCostoAdicional(costo.id)} className="text-red-600 font-bold text-lg">🗑️</button>
+                </div>
+                
+                <p className="font-bold text-sm">Total: ${costo.valor_total.toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+
+          {costosAdicionales.length > 0 && (
+            <p className="mt-3 font-bold text-lg">
+              Total Adicionales: ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString()}
+            </p>
+          )}
+        </div>
+
+        {/* RESUMEN */}
+        <div className="bg-[#F5F2E6] p-4 rounded-lg border-4 border-[#1F3D2B]">
+          <h4 className="font-bold text-[#1F3D2B] mb-3">RESUMEN DE COSTOS</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <label className="block text-sm font-bold mb-1">Observaciones</label>
-              <textarea value={genericoObservaciones} onChange={(e) => setGenericoObservaciones(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" rows="2"></textarea>
+              <p><span className="font-bold">Productos:</span> ${items.reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()}</p>
+              <p><span className="font-bold">Jornales:</span> ${((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)).toLocaleString()}</p>
             </div>
-
             <div>
-              <label className="block text-sm font-bold mb-2">Costos Adicionales</label>
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#F5F2E6]">
-                    <th className="border p-2 text-left">Descripción</th>
-                    <th className="border p-2 text-center">Cantidad</th>
-                    <th className="border p-2 text-center">Valor</th>
-                    <th className="border p-2 text-center">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {genericoCostos.map(c => (
-                    <tr key={c.id} className="border">
-                      <td className="border p-2">
-                        <input type="text" value={c.descripcion} onChange={(e) => updateCostoGenerico(c.id, 'descripcion', e.target.value)} className="w-full p-1 border rounded text-xs" />
-                      </td>
-                      <td className="border p-2">
-                        <input type="number" step="0.01" value={c.cantidad} onChange={(e) => updateCostoGenerico(c.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
-                      </td>
-                      <td className="border p-2">
-                        <input type="number" step="0.01" value={c.valor} onChange={(e) => updateCostoGenerico(c.id, 'valor', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
-                      </td>
-                      <td className="border p-2 text-center">
-                        <button type="button" onClick={() => removeCostoGenerico(c.id)} className="text-red-600 font-bold">❌</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <button type="button" onClick={addCostoGenerico} className="mt-2 bg-green-600 text-white px-3 py-1 rounded text-sm font-bold">➕ Agregar Costo</button>
+              <p><span className="font-bold">Combustible:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString()}</p>
+              <p><span className="font-bold">Adicionales:</span> ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString()}</p>
             </div>
           </div>
-        )}
+          <p className="mt-3 font-bold text-lg text-[#1F3D2B]">
+            TOTAL ACTIVIDAD: ${(
+              items.reduce((sum, i) => sum + (i.total || 0), 0) +
+              ((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)) +
+              ((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)) +
+              costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0)
+            ).toLocaleString()}
+          </p>
+        </div>
 
-        <button type="submit" disabled={loading} className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116] disabled:bg-gray-400">
-          {loading ? '⏳ Guardando...' : '✅ Guardar Actividad'}
+        <button type="submit" className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116]">
+          ✅ Guardar Actividad
         </button>
       </form>
+
+      {/* MODAL CREAR PRODUCTO */}
+      {showModalProducto && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg border-4 border-[#1F3D2B] w-80">
+            <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">➕ Crear Producto</h3>
+
+            <input type="text" placeholder="Nombre producto" value={newProdNombre} onChange={(e) => setNewProdNombre(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-3" />
+            <input type="text" placeholder="Unidad (L, kg, etc)" value={newProdUnidad} onChange={(e) => setNewProdUnidad(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-3" />
+            <input type="number" step="0.01" placeholder="Precio" value={newProdPrecio} onChange={(e) => setNewProdPrecio(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded mb-4" />
+
+            <p className="text-sm font-bold text-[#1F3D2B] mb-2">Categoría: <span className="text-blue-600">{newProdCategoria}</span></p>
+
+            <div className="flex gap-2">
+              <button type="button" onClick={createProducto} className="flex-1 bg-green-600 text-white font-bold py-2 rounded">✅ Crear</button>
+              <button type="button" onClick={() => setShowModalProducto(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL IMPORT */}
+      {showModalImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg border-4 border-[#1F3D2B] w-full max-w-2xl max-h-96 overflow-y-auto">
+            <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📊 Importar Excel</h3>
+
+            {!importPreview ? (
+              <div>
+                <p className="mb-4 text-sm text-[#6B5D45]">Selecciona archivo Excel</p>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleImportFile}
+                  className="w-full p-3 border-2 border-[#D8D2BE] rounded bg-[#F5F2E6]"
+                />
+              </div>
+            ) : (
+              <div>
+                <table className="w-full text-xs border-collapse mb-4">
+                  <thead>
+                    <tr className="bg-[#F5F2E6]">
+                      {importDatos.length > 0 && Object.keys(importDatos[0]).map(key => (
+                        <th key={key} className="border p-1 text-left font-bold">{key}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importDatos.slice(0, 3).map((row, idx) => (
+                      <tr key={idx} className="border">
+                        {Object.values(row).map((val, i) => (
+                          <td key={i} className="border p-1 text-xs">{val}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              {importPreview && (
+                <button type="button" onClick={() => { setImportPreview(false); setImportDatos([]); }} className="flex-1 bg-gray-600 text-white font-bold py-2 rounded">← Volver</button>
+              )}
+              <button type="button" onClick={() => setShowModalImport(false)} className="flex-1 bg-red-600 text-white font-bold py-2 rounded">❌ Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

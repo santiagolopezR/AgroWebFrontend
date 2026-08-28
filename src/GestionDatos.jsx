@@ -2,84 +2,53 @@ import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 
 export default function GestionDatos() {
-  const [tab, setTab] = useState('fincas')
-
-  return (
-    <div className="p-8 max-w-6xl">
-      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">📋 Gestión de Datos Maestros</h2>
-      
-      <div className="flex gap-2 mb-8 border-b-2 border-[#D8D2BE] overflow-x-auto">
-        <button onClick={() => setTab('fincas')} className={`px-6 py-3 font-bold ${tab === 'fincas' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏞️ Fincas</button>
-        <button onClick={() => setTab('lotes')} className={`px-6 py-3 font-bold ${tab === 'lotes' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>📍 Lotes</button>
-        <button onClick={() => setTab('cultivos')} className={`px-6 py-3 font-bold ${tab === 'cultivos' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🌾 Cultivos</button>
-        <button onClick={() => setTab('proveedores')} className={`px-6 py-3 font-bold ${tab === 'proveedores' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>👥 Proveedores</button>
-        <button onClick={() => setTab('maquinaria')} className={`px-6 py-3 font-bold ${tab === 'maquinaria' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🚜 Maquinaria</button>
-        <button onClick={() => setTab('categorias')} className={`px-6 py-3 font-bold ${tab === 'categorias' ? 'border-b-4 border-[#1F3D2B] text-[#1F3D2B]' : 'text-[#6B5D45]'}`}>🏷️ Categorías</button>
-      </div>
-
-      {tab === 'fincas' && <Fincas />}
-      {tab === 'lotes' && <Lotes />}
-      {tab === 'cultivos' && <Cultivos />}
-      {tab === 'proveedores' && <Proveedores />}
-      {tab === 'maquinaria' && <Maquinaria />}
-      {tab === 'categorias' && <Categorias />}
-    </div>
-  )
-}
-
-function Fincas() {
-  const [items, setItems] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [ubicacion, setUbicacion] = useState('')
-  const [userId, setUserId] = useState(null)
-
-  useEffect(() => {
-    getUser()
-  }, [])
-
-  const getUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    setUserId(session?.user?.id)
-  }
-
-  useEffect(() => {
-    if (userId) fetch()
-  }, [userId])
-
-  const fetch = async () => {
-    const { data } = await supabase.from('api_finca').select('*').eq('user_id', userId)
-    setItems(data || [])
-  }
-
-  const create = async (e) => {
-    e.preventDefault()
-    await supabase.from('api_finca').insert([{ nombre, ubicacion, cliente_id: 1, user_id: userId }])
-    setNombre('')
-    setUbicacion('')
-    fetch()
-  }
-
-  return (
-    <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <input type="text" placeholder="Nombre finca" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <input type="text" placeholder="Ubicación" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Finca</button>
-      </form>
-      <div className="space-y-2">
-        {items.map(f => <div key={f.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{f.nombre}</p><p className="text-sm text-[#6B5D45]">{f.ubicacion}</p></div>)}
-      </div>
-    </div>
-  )
-}
-
-function Lotes() {
-  const [items, setItems] = useState([])
+  const [user, setUser] = useState(null)
+  const [activeTab, setActiveTab] = useState('fincas')
+  
+  // FINCAS
   const [fincas, setFincas] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [superficie, setSuperficie] = useState('')
-  const [fincaId, setFincaId] = useState('')
-  const [userId, setUserId] = useState(null)
+  const [newFinca, setNewFinca] = useState('')
+  
+  // LOTES
+  const [lotes, setLotes] = useState([])
+  const [newLote, setNewLote] = useState({ nombre: '', finca_id: '', area_hectareas: '' })
+  const [lotesFincaId, setLotesFincaId] = useState('')
+  
+  // CULTIVOS
+  const [cultivos, setCultivos] = useState([])
+  const [newCultivo, setNewCultivo] = useState('')
+  
+  // PROVEEDORES
+  const [proveedores, setProveedores] = useState([])
+  const [newProveedor, setNewProveedor] = useState({ nombre: '', contacto: '', email: '' })
+  
+  // CATEGORÍAS
+  const [categorias, setCategorias] = useState([])
+  const [newCategoria, setNewCategoria] = useState('')
+  
+  // COSTOS FIJOS DINÁMICOS
+  const [costosFijos, setCostosFijos] = useState([])
+  const [newCostoFijo, setNewCostoFijo] = useState({ nombre: '', valor_unitario: '', unidad: '' })
+  
+  // PRÉSTAMOS
+  const [prestamos, setPrestamos] = useState([])
+  const [newPrestamo, setNewPrestamo] = useState({ 
+    nombre_trabajador: '', 
+    monto_prestado: '', 
+    fecha_prestamo: '',
+    quien_otorgo: 'Ganaderia OL',
+    descripcion: ''
+  })
+  const [selectedPrestamo, setSelectedPrestamo] = useState(null)
+  const [newAbono, setNewAbono] = useState({ 
+    monto_abono: '', 
+    fecha_abono: '',
+    quien_descunto: 'Ganaderia OL',
+    observaciones: ''
+  })
+  
+  // BALANCE PRÉSTAMOS
+  const [balancePrestamos, setBalancePrestamos] = useState(null)
 
   useEffect(() => {
     getUser()
@@ -87,329 +56,731 @@ function Lotes() {
 
   const getUser = async () => {
     const { data: { session } } = await supabase.auth.getSession()
-    setUserId(session?.user?.id)
+    setUser(session?.user?.id)
   }
 
   useEffect(() => {
-    if (userId) {
-      fetch()
+    if (user) {
       fetchFincas()
+      fetchCultivos()
+      fetchProveedores()
+      fetchCategorias()
+      fetchCostosFijos()
+      fetchPrestamos()
     }
-  }, [userId])
+  }, [user])
 
-  const fetch = async () => {
-    const { data } = await supabase.from('api_lote').select('*').eq('user_id', userId)
-    setItems(data || [])
-  }
-
+  // ==================== FINCAS ====================
   const fetchFincas = async () => {
-    const { data } = await supabase.from('api_finca').select('*').eq('user_id', userId)
+    const { data } = await supabase.from('api_finca').select('*').eq('user_id', user)
     setFincas(data || [])
   }
 
-  const create = async (e) => {
-    e.preventDefault()
-    await supabase.from('api_lote').insert([{ nombre, superficie: parseFloat(superficie), finca_id: parseInt(fincaId), user_id: userId }])
-    setNombre('')
-    setSuperficie('')
-    setFincaId('')
-    fetch()
+  const createFinca = async () => {
+    if (!newFinca) return
+    await supabase.from('api_finca').insert([{ nombre: newFinca, user_id: user }])
+    setNewFinca('')
+    fetchFincas()
   }
 
-  return (
-    <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <select value={fincaId} onChange={(e) => setFincaId(e.target.value)} className="w-full p-3 border rounded mb-4" required>
-          <option value="">Selecciona Finca</option>
-          {fincas.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
-        </select>
-        <input type="text" placeholder="Nombre lote" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <input type="number" step="0.1" placeholder="Superficie (ha)" value={superficie} onChange={(e) => setSuperficie(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Lote</button>
-      </form>
-      <div className="space-y-2">
-        {items.map(l => <div key={l.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{l.nombre}</p><p className="text-sm text-[#6B5D45]">{l.superficie} ha</p></div>)}
-      </div>
-    </div>
-  )
-}
-
-function Cultivos() {
-  const [items, setItems] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [userId, setUserId] = useState(null)
-
-  useEffect(() => {
-    getUser()
-  }, [])
-
-  const getUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    setUserId(session?.user?.id)
+  const deleteFinca = async (id) => {
+    await supabase.from('api_finca').delete().eq('id', id)
+    fetchFincas()
   }
 
-  useEffect(() => {
-    if (userId) fetch()
-  }, [userId])
-
-  const fetch = async () => {
-    const { data } = await supabase.from('api_cultivocatalogo').select('id, nombre')
-    setItems(data || [])
+  // ==================== LOTES ====================
+  const fetchLotes = async (fincaId) => {
+    const { data } = await supabase.from('api_lote').select('*').eq('finca_id', fincaId)
+    setLotes(data || [])
   }
 
-  const create = async (e) => {
-    e.preventDefault()
-    await supabase.from('api_cultivocatalogo').insert([{ nombre, user_id: userId }])
-    setNombre('')
-    fetch()
-  }
-
-  return (
-    <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <input type="text" placeholder="Nombre cultivo" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Cultivo</button>
-      </form>
-      <div className="space-y-2">
-        {items.map(c => <div key={c.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{c.nombre}</p></div>)}
-      </div>
-    </div>
-  )
-}
-
-function Proveedores() {
-  const [items, setItems] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [contacto, setContacto] = useState('')
-  const [email, setEmail] = useState('')
-  const [userId, setUserId] = useState(null)
-
-  useEffect(() => {
-    getUser()
-  }, [])
-
-  const getUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    setUserId(session?.user?.id)
-  }
-
-  useEffect(() => {
-    if (userId) fetch()
-  }, [userId])
-
-  const fetch = async () => {
-    const { data } = await supabase.from('api_proveedor').select('*').eq('user_id', userId)
-    setItems(data || [])
-  }
-
-  const create = async (e) => {
-    e.preventDefault()
-    await supabase.from('api_proveedor').insert([{ nombre, contacto, email, user_id: userId }])
-    setNombre('')
-    setContacto('')
-    setEmail('')
-    fetch()
-  }
-
-  return (
-    <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded mb-4" required />
-        <input type="text" placeholder="Contacto" value={contacto} onChange={(e) => setContacto(e.target.value)} className="w-full p-3 border rounded mb-4" />
-        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-3 border rounded mb-4" />
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Proveedor</button>
-      </form>
-      <div className="space-y-2">
-        {items.map(p => <div key={p.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{p.nombre}</p><p className="text-sm text-[#6B5D45]">{p.email}</p></div>)}
-      </div>
-    </div>
-  )
-}
-
-function Maquinaria() {
-  const [items, setItems] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [tipo, setTipo] = useState('')
-  const [capacidad, setCapacidad] = useState('')
-  const [consumo, setConsumo] = useState('')
-  const [combustible, setCombustible] = useState('Diesel')
-  const [costoHorario, setCostoHorario] = useState('')
-  const [costoEquipo, setCostoEquipo] = useState('')
-  const [anioCompra, setAnioCompra] = useState('')
-  const [estado, setEstado] = useState('Operativo')
-  const [observaciones, setObservaciones] = useState('')
-  const [userId, setUserId] = useState(null)
-
-  useEffect(() => {
-    getUser()
-  }, [])
-
-  const getUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    setUserId(session?.user?.id)
-  }
-
-  useEffect(() => {
-    if (userId) fetch()
-  }, [userId])
-
-  const fetch = async () => {
-    const { data } = await supabase.from('api_maquinaria').select('*').eq('user_id', userId)
-    setItems(data || [])
-  }
-
-  const create = async (e) => {
-    e.preventDefault()
-    await supabase.from('api_maquinaria').insert([{
-      nombre,
-      tipo,
-      capacidad,
-      consumo_combustible_hora: parseFloat(consumo),
-      combustible_tipo: combustible,
-      costo_horario: parseFloat(costoHorario),
-      costo_equipo: parseFloat(costoEquipo),
-      año_compra: parseInt(anioCompra),
-      estado,
-      observaciones,
-      user_id: userId
+  const createLote = async () => {
+    if (!newLote.nombre || !lotesFincaId || !newLote.area_hectareas) return
+    await supabase.from('api_lote').insert([{
+      nombre: newLote.nombre,
+      finca_id: parseInt(lotesFincaId),
+      area_hectareas: parseFloat(newLote.area_hectareas),
+      user_id: user
     }])
-    setNombre('')
-    setTipo('')
-    setCapacidad('')
-    setConsumo('')
-    setCombustible('Diesel')
-    setCostoHorario('')
-    setCostoEquipo('')
-    setAnioCompra('')
-    setEstado('Operativo')
-    setObservaciones('')
-    fetch()
+    setNewLote({ nombre: '', finca_id: '', area_hectareas: '' })
+    fetchLotes(lotesFincaId)
   }
 
-  return (
-    <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <input type="text" placeholder="Nombre (Tractor JD 5090)" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full p-3 border rounded" required />
-          <input type="text" placeholder="Tipo (Tractor, Pulverizador, etc)" value={tipo} onChange={(e) => setTipo(e.target.value)} className="w-full p-3 border rounded" required />
-          <input type="text" placeholder="Capacidad (500L, 5 surcos, etc)" value={capacidad} onChange={(e) => setCapacidad(e.target.value)} className="w-full p-3 border rounded" />
-          <input type="number" step="0.1" placeholder="Consumo L/hora" value={consumo} onChange={(e) => setConsumo(e.target.value)} className="w-full p-3 border rounded" />
-          <select value={combustible} onChange={(e) => setCombustible(e.target.value)} className="w-full p-3 border rounded">
-            <option value="Diesel">Diesel</option>
-            <option value="Gasolina">Gasolina</option>
-            <option value="Electricidad">Electricidad</option>
-          </select>
-          <input type="number" step="0.01" placeholder="Costo horario ($)" value={costoHorario} onChange={(e) => setCostoHorario(e.target.value)} className="w-full p-3 border rounded" />
-          <input type="number" step="0.01" placeholder="Costo equipo ($)" value={costoEquipo} onChange={(e) => setCostoEquipo(e.target.value)} className="w-full p-3 border rounded" />
-          <input type="number" placeholder="Año compra" value={anioCompra} onChange={(e) => setAnioCompra(e.target.value)} className="w-full p-3 border rounded" />
-          <select value={estado} onChange={(e) => setEstado(e.target.value)} className="w-full p-3 border rounded">
-            <option value="Operativo">Operativo</option>
-            <option value="Mantenimiento">Mantenimiento</option>
-            <option value="Fuera de servicio">Fuera de servicio</option>
-          </select>
-        </div>
-        <textarea placeholder="Observaciones" value={observaciones} onChange={(e) => setObservaciones(e.target.value)} className="w-full p-3 border rounded mb-4" rows="2"></textarea>
-        <button className="bg-[#1F3D2B] text-white px-6 py-2 rounded font-bold">➕ Crear Maquinaria</button>
-      </form>
-      <div className="space-y-2">
-        {items.map(m => <div key={m.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B]"><p className="font-bold">{m.nombre}</p><p className="text-sm text-[#6B5D45]">{m.tipo} | {m.capacidad} | ${m.costo_horario}/h | {m.estado}</p></div>)}
-      </div>
-    </div>
-  )
-}
-
-function Categorias() {
-  const [items, setItems] = useState([])
-  const [nombre, setNombre] = useState('')
-  const [userId, setUserId] = useState(null)
-
-  useEffect(() => {
-    getUser()
-  }, [])
-
-  const getUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    setUserId(session?.user?.id)
+  const deleteLote = async (id) => {
+    await supabase.from('api_lote').delete().eq('id', id)
+    fetchLotes(lotesFincaId)
   }
 
-  useEffect(() => {
-    if (userId) fetch()
-  }, [userId])
-
-  const fetch = async () => {
-    const { data } = await supabase.from('api_categoria').select('*').order('nombre')
-    setItems(data || [])
+  // ==================== CULTIVOS ====================
+  const fetchCultivos = async () => {
+    const { data } = await supabase.from('api_cultivocatalogo').select('*')
+    setCultivos(data || [])
   }
 
-  const create = async (e) => {
-    e.preventDefault()
-    if (!nombre.trim()) {
-      alert('Ingresa nombre de categoría')
-      return
-    }
+  const createCultivo = async () => {
+    if (!newCultivo) return
+    await supabase.from('api_cultivocatalogo').insert([{ nombre: newCultivo }])
+    setNewCultivo('')
+    fetchCultivos()
+  }
 
-    const { error } = await supabase.from('api_categoria').insert([{
-      nombre: nombre.trim(),
-      user_id: userId
+  const deleteCultivo = async (id) => {
+    await supabase.from('api_cultivocatalogo').delete().eq('id', id)
+    fetchCultivos()
+  }
+
+  // ==================== PROVEEDORES ====================
+  const fetchProveedores = async () => {
+    const { data } = await supabase.from('api_proveedor').select('*').eq('user_id', user)
+    setProveedores(data || [])
+  }
+
+  const createProveedor = async () => {
+    if (!newProveedor.nombre) return
+    await supabase.from('api_proveedor').insert([{
+      nombre: newProveedor.nombre,
+      contacto: newProveedor.contacto,
+      email: newProveedor.email,
+      user_id: user
     }])
+    setNewProveedor({ nombre: '', contacto: '', email: '' })
+    fetchProveedores()
+  }
 
-    if (error) {
-      alert('Error: ' + error.message)
-      return
-    }
+  const deleteProveedor = async (id) => {
+    await supabase.from('api_proveedor').delete().eq('id', id)
+    fetchProveedores()
+  }
 
-    setNombre('')
-    fetch()
+  // ==================== CATEGORÍAS ====================
+  const fetchCategorias = async () => {
+    const { data } = await supabase.from('api_categoria').select('*')
+    setCategorias(data || [])
+  }
+
+  const createCategoria = async () => {
+    if (!newCategoria) return
+    await supabase.from('api_categoria').insert([{ nombre: newCategoria, user_id: user }])
+    setNewCategoria('')
+    fetchCategorias()
   }
 
   const deleteCategoria = async (id) => {
-    if (!confirm('¿Eliminar categoría?')) return
+    await supabase.from('api_categoria').delete().eq('id', id)
+    fetchCategorias()
+  }
+
+  // ==================== COSTOS FIJOS DINÁMICOS ====================
+  const fetchCostosFijos = async () => {
+    const { data } = await supabase.from('api_costo_fijo').select('*').eq('user_id', user).eq('activo', true)
+    setCostosFijos(data || [])
+  }
+
+  const createCostoFijo = async () => {
+    if (!newCostoFijo.nombre || !newCostoFijo.valor_unitario) return
     
-    const { error } = await supabase.from('api_categoria').delete().eq('id', id)
-    if (error) {
-      alert('Error: ' + error.message)
+    await supabase.from('api_costo_fijo').insert([{
+      nombre: newCostoFijo.nombre,
+      valor_unitario: parseFloat(newCostoFijo.valor_unitario),
+      unidad: newCostoFijo.unidad,
+      user_id: user
+    }])
+    
+    setNewCostoFijo({ nombre: '', valor_unitario: '', unidad: '' })
+    fetchCostosFijos()
+  }
+
+  const deleteCostoFijo = async (id) => {
+    await supabase.from('api_costo_fijo').delete().eq('id', id)
+    fetchCostosFijos()
+  }
+
+  // ==================== PRÉSTAMOS ====================
+  const fetchPrestamos = async () => {
+    const { data } = await supabase.from('api_prestamo_trabajador').select('*, api_abono_prestamo(*)').eq('user_id', user)
+    setPrestamos(data || [])
+    fetchBalancePrestamos()
+  }
+
+  const createPrestamo = async () => {
+    if (!newPrestamo.nombre_trabajador || !newPrestamo.monto_prestado) return
+    
+    await supabase.from('api_prestamo_trabajador').insert([{
+      nombre_trabajador: newPrestamo.nombre_trabajador,
+      monto_prestado: parseFloat(newPrestamo.monto_prestado),
+      fecha_prestamo: newPrestamo.fecha_prestamo,
+      saldo_pendiente: parseFloat(newPrestamo.monto_prestado),
+      quien_otorgo: newPrestamo.quien_otorgo,
+      descripcion: newPrestamo.descripcion,
+      user_id: user
+    }])
+    
+    setNewPrestamo({ 
+      nombre_trabajador: '', 
+      monto_prestado: '', 
+      fecha_prestamo: '',
+      quien_otorgo: 'Ganaderia OL',
+      descripcion: ''
+    })
+    fetchPrestamos()
+  }
+
+  const deletePrestamo = async (id) => {
+    await supabase.from('api_prestamo_trabajador').delete().eq('id', id)
+    fetchPrestamos()
+  }
+
+  const addAbono = async (prestamoId) => {
+    if (!newAbono.monto_abono || !newAbono.fecha_abono) return
+    
+    const prestamo = prestamos.find(p => p.id === prestamoId)
+    const montoAbono = parseFloat(newAbono.monto_abono)
+    
+    if (montoAbono > prestamo.saldo_pendiente) {
+      alert(`No puedes abonar más del saldo: $${prestamo.saldo_pendiente}`)
       return
     }
-    fetch()
+    
+    await supabase.from('api_abono_prestamo').insert([{
+      prestamo_id: prestamoId,
+      monto_abono: montoAbono,
+      fecha_abono: newAbono.fecha_abono,
+      quien_descunto: newAbono.quien_descunto,
+      observaciones: newAbono.observaciones,
+      user_id: user
+    }])
+    
+    const nuevoSaldo = prestamo.saldo_pendiente - montoAbono
+    const nuevoEstado = nuevoSaldo === 0 ? 'pagado' : 'activo'
+    
+    await supabase.from('api_prestamo_trabajador').update({
+      saldo_pendiente: nuevoSaldo,
+      estado: nuevoEstado
+    }).eq('id', prestamoId)
+    
+    setNewAbono({ monto_abono: '', fecha_abono: '', quien_descunto: 'Ganaderia OL', observaciones: '' })
+    setSelectedPrestamo(null)
+    fetchPrestamos()
+  }
+
+  const fetchBalancePrestamos = async () => {
+    const { data } = await supabase.from('api_prestamo_trabajador').select('*').eq('user_id', user)
+    
+    const balance = {
+      ganaderia_ol: 0,
+      santiago: 0,
+      detalles: { ganaderia_ol: [], santiago: [] }
+    }
+    
+    data?.forEach(p => {
+      if (p.quien_otorgo === 'Ganaderia OL') {
+        balance.ganaderia_ol += p.saldo_pendiente
+        balance.detalles.ganaderia_ol.push(p)
+      } else {
+        balance.santiago += p.saldo_pendiente
+        balance.detalles.santiago.push(p)
+      }
+    })
+    
+    setBalancePrestamos(balance)
   }
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={create} className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-        <div className="flex gap-2">
-          <input 
-            type="text" 
-            placeholder="Nueva categoría (ej: Plaguicidas, Herramientas)" 
-            value={nombre} 
-            onChange={(e) => setNombre(e.target.value)} 
-            className="flex-1 p-3 border-2 border-[#D8D2BE] rounded" 
-            required 
-          />
-          <button className="bg-[#1F3D2B] text-white px-6 py-3 rounded font-bold">➕ Crear</button>
-        </div>
-      </form>
+    <div className="p-8 max-w-full">
+      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">📋 Gestión de Datos</h2>
 
-      <div className="space-y-2">
-        <h3 className="font-bold text-lg">Categorías Disponibles ({items.length}):</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {items.map(c => (
-            <div key={c.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#1F3D2B] flex justify-between items-center">
-              <div>
-                <p className="font-bold">{c.nombre}</p>
-                <p className="text-xs text-[#6B5D45]">{c.user_id ? '👤 Personal' : '🌍 Predeterminada'}</p>
-              </div>
-              {c.user_id && (
-                <button 
-                  onClick={() => deleteCategoria(c.id)}
-                  className="text-red-600 font-bold hover:text-red-800"
-                >
-                  🗑️
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+      {/* TABS */}
+      <div className="flex gap-2 mb-6 overflow-x-auto flex-wrap">
+        {[
+          { id: 'fincas', label: '🏠 Fincas' },
+          { id: 'lotes', label: '📍 Lotes' },
+          { id: 'cultivos', label: '🌾 Cultivos' },
+          { id: 'proveedores', label: '🚚 Proveedores' },
+          { id: 'categorias', label: '🏷️ Categorías' },
+          { id: 'costos-fijos', label: '💰 Costos Fijos' },
+          { id: 'prestamos', label: '💵 Préstamos' },
+          { id: 'balance-prestamos', label: '📊 Balance' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded font-bold text-sm whitespace-nowrap ${
+              activeTab === tab.id 
+                ? 'bg-[#1F3D2B] text-white' 
+                : 'bg-[#D8D2BE] text-[#1F3D2B]'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
+
+      {/* ==================== FINCAS ==================== */}
+      {activeTab === 'fincas' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">Fincas</h3>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newFinca}
+              onChange={(e) => setNewFinca(e.target.value)}
+              placeholder="Nombre de finca"
+              className="flex-1 p-2 border-2 border-[#D8D2BE] rounded text-sm"
+            />
+            <button onClick={createFinca} className="bg-green-600 text-white px-4 py-2 rounded font-bold">➕</button>
+          </div>
+          <div className="space-y-2">
+            {fincas.map(f => (
+              <div key={f.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
+                <p className="font-bold">{f.nombre}</p>
+                <button onClick={() => deleteFinca(f.id)} className="text-red-600 font-bold">🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ==================== LOTES ==================== */}
+      {activeTab === 'lotes' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">Lotes</h3>
+          
+          <div className="mb-4">
+            <label className="text-sm font-bold text-[#1F3D2B]">Selecciona Finca</label>
+            <select 
+              value={lotesFincaId} 
+              onChange={(e) => {
+                setLotesFincaId(e.target.value)
+                if (e.target.value) fetchLotes(e.target.value)
+              }}
+              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm mt-2"
+            >
+              <option value="">Selecciona...</option>
+              {fincas.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
+            </select>
+          </div>
+
+          {lotesFincaId && (
+            <>
+              <div className="space-y-2 mb-4">
+                <input
+                  type="text"
+                  value={newLote.nombre}
+                  onChange={(e) => setNewLote({ ...newLote, nombre: e.target.value })}
+                  placeholder="Nombre lote"
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newLote.area_hectareas}
+                  onChange={(e) => setNewLote({ ...newLote, area_hectareas: e.target.value })}
+                  placeholder="Área (hectáreas)"
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                />
+                <button onClick={createLote} className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold">➕ Agregar Lote</button>
+              </div>
+
+              <div className="space-y-2">
+                {lotes.map(l => (
+                  <div key={l.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
+                    <div>
+                      <p className="font-bold">{l.nombre}</p>
+                      <p className="text-xs text-[#6B5D45]">{l.area_hectareas} ha</p>
+                    </div>
+                    <button onClick={() => deleteLote(l.id)} className="text-red-600 font-bold">🗑️</button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ==================== CULTIVOS ==================== */}
+      {activeTab === 'cultivos' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">Cultivos</h3>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newCultivo}
+              onChange={(e) => setNewCultivo(e.target.value)}
+              placeholder="Nombre cultivo"
+              className="flex-1 p-2 border-2 border-[#D8D2BE] rounded text-sm"
+            />
+            <button onClick={createCultivo} className="bg-green-600 text-white px-4 py-2 rounded font-bold">➕</button>
+          </div>
+          <div className="space-y-2">
+            {cultivos.map(c => (
+              <div key={c.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
+                <p className="font-bold">{c.nombre}</p>
+                <button onClick={() => deleteCultivo(c.id)} className="text-red-600 font-bold">🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ==================== PROVEEDORES ==================== */}
+      {activeTab === 'proveedores' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">Proveedores</h3>
+          <div className="space-y-2 mb-4">
+            <input
+              type="text"
+              value={newProveedor.nombre}
+              onChange={(e) => setNewProveedor({ ...newProveedor, nombre: e.target.value })}
+              placeholder="Nombre"
+              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+            />
+            <input
+              type="text"
+              value={newProveedor.contacto}
+              onChange={(e) => setNewProveedor({ ...newProveedor, contacto: e.target.value })}
+              placeholder="Contacto"
+              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+            />
+            <input
+              type="email"
+              value={newProveedor.email}
+              onChange={(e) => setNewProveedor({ ...newProveedor, email: e.target.value })}
+              placeholder="Email"
+              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+            />
+            <button onClick={createProveedor} className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold">➕ Agregar</button>
+          </div>
+          <div className="space-y-2">
+            {proveedores.map(p => (
+              <div key={p.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
+                <div>
+                  <p className="font-bold">{p.nombre}</p>
+                  <p className="text-xs text-[#6B5D45]">{p.email}</p>
+                </div>
+                <button onClick={() => deleteProveedor(p.id)} className="text-red-600 font-bold">🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ==================== CATEGORÍAS ==================== */}
+      {activeTab === 'categorias' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">🏷️ Categorías</h3>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newCategoria}
+              onChange={(e) => setNewCategoria(e.target.value)}
+              placeholder="Nueva categoría"
+              className="flex-1 p-2 border-2 border-[#D8D2BE] rounded text-sm"
+            />
+            <button onClick={createCategoria} className="bg-green-600 text-white px-4 py-2 rounded font-bold">➕</button>
+          </div>
+          <div className="space-y-2">
+            {categorias.map(c => (
+              <div key={c.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
+                <div>
+                  <p className="font-bold">{c.nombre}</p>
+                  <p className="text-xs text-[#6B5D45]">{c.user_id ? '👤 Personal' : '🌍 Predeterminada'}</p>
+                </div>
+                {c.user_id && <button onClick={() => deleteCategoria(c.id)} className="text-red-600 font-bold">🗑️</button>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ==================== COSTOS FIJOS DINÁMICOS ==================== */}
+      {activeTab === 'costos-fijos' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Costos Fijos Unitarios</h3>
+          
+          <div className="mb-6 p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+            <h4 className="font-bold text-[#1F3D2B] mb-3">Agregar Nuevo Costo</h4>
+            
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={newCostoFijo.nombre}
+                onChange={(e) => setNewCostoFijo({ ...newCostoFijo, nombre: e.target.value })}
+                placeholder="Nombre (ej: Jornal, Combustible, Drone, Transporte)"
+                className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+              />
+              
+              <input
+                type="number"
+                step="0.01"
+                value={newCostoFijo.valor_unitario}
+                onChange={(e) => setNewCostoFijo({ ...newCostoFijo, valor_unitario: e.target.value })}
+                placeholder="Valor unitario"
+                className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+              />
+              
+              <input
+                type="text"
+                value={newCostoFijo.unidad}
+                onChange={(e) => setNewCostoFijo({ ...newCostoFijo, unidad: e.target.value })}
+                placeholder="Unidad (ej: /jornal, /litro, /ha, /km)"
+                className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+              />
+              
+              <button 
+                onClick={createCostoFijo}
+                className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold"
+              >
+                ➕ Agregar Costo
+              </button>
+            </div>
+          </div>
+
+          <h4 className="font-bold text-[#1F3D2B] mb-3">Costos Registrados</h4>
+          <div className="space-y-2">
+            {costosFijos.map(c => (
+              <div key={c.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+                <div>
+                  <p className="font-bold text-[#1F3D2B]">{c.nombre}</p>
+                  <p className="text-sm text-[#6B5D45]">${c.valor_unitario.toLocaleString()} {c.unidad}</p>
+                </div>
+                <button onClick={() => deleteCostoFijo(c.id)} className="text-red-600 font-bold">🗑️</button>
+              </div>
+            ))}
+          </div>
+
+          {costosFijos.length === 0 && (
+            <p className="text-center text-[#6B5D45] p-4">No hay costos registrados. Agrega el primero.</p>
+          )}
+        </div>
+      )}
+
+      {/* ==================== PRÉSTAMOS ==================== */}
+      {activeTab === 'prestamos' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💵 Préstamos a Trabajadores</h3>
+          
+          {!selectedPrestamo ? (
+            <>
+              <div className="space-y-2 mb-6 p-4 bg-[#F5F2E6] rounded">
+                <h4 className="font-bold text-[#1F3D2B]">Nuevo Préstamo</h4>
+                
+                <input
+                  type="text"
+                  value={newPrestamo.nombre_trabajador}
+                  onChange={(e) => setNewPrestamo({ ...newPrestamo, nombre_trabajador: e.target.value })}
+                  placeholder="Nombre trabajador"
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                />
+                
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newPrestamo.monto_prestado}
+                  onChange={(e) => setNewPrestamo({ ...newPrestamo, monto_prestado: e.target.value })}
+                  placeholder="Monto"
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                />
+                
+                <input
+                  type="date"
+                  value={newPrestamo.fecha_prestamo}
+                  onChange={(e) => setNewPrestamo({ ...newPrestamo, fecha_prestamo: e.target.value })}
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                />
+                
+                <select
+                  value={newPrestamo.quien_otorgo}
+                  onChange={(e) => setNewPrestamo({ ...newPrestamo, quien_otorgo: e.target.value })}
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                >
+                  <option value="Ganaderia OL">Ganaderia OL</option>
+                  <option value="Santiago">Santiago</option>
+                </select>
+                
+                <input
+                  type="text"
+                  value={newPrestamo.descripcion}
+                  onChange={(e) => setNewPrestamo({ ...newPrestamo, descripcion: e.target.value })}
+                  placeholder="Descripción (opcional)"
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                />
+                
+                <button 
+                  onClick={createPrestamo} 
+                  className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold"
+                >
+                  ➕ Registrar Préstamo
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {prestamos.map(p => (
+                  <div key={p.id} className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-bold text-[#1F3D2B]">{p.nombre_trabajador}</p>
+                        <p className="text-xs text-[#6B5D45]">Otorgado por: {p.quien_otorgo}</p>
+                      </div>
+                      <button onClick={() => deletePrestamo(p.id)} className="text-red-600 font-bold">🗑️</button>
+                    </div>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-sm">Préstamo: ${p.monto_prestado.toLocaleString()}</span>
+                      <span className={`text-sm font-bold ${p.saldo_pendiente === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        Saldo: ${p.saldo_pendiente.toLocaleString()}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={() => setSelectedPrestamo(p.id)}
+                      className="w-full bg-blue-600 text-white px-3 py-1 rounded text-sm font-bold"
+                    >
+                      [+ Agregar Abono]
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {prestamos.find(p => p.id === selectedPrestamo) && (
+                <div className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE] mb-4">
+                  {(() => {
+                    const p = prestamos.find(p => p.id === selectedPrestamo)
+                    return (
+                      <>
+                        <h4 className="font-bold text-[#1F3D2B] mb-3">{p.nombre_trabajador}</h4>
+                        
+                        <div className="mb-3 p-3 bg-white rounded border border-[#D8D2BE]">
+                          <p className="text-sm"><span className="font-bold">Préstamo Original:</span> ${p.monto_prestado.toLocaleString()}</p>
+                          <p className="text-sm"><span className="font-bold">Saldo Pendiente:</span> ${p.saldo_pendiente.toLocaleString()}</p>
+                          {p.api_abono_prestamo?.length > 0 && (
+                            <>
+                              <p className="text-sm font-bold mt-2">Historial de Abonos:</p>
+                              <div className="text-xs space-y-1">
+                                {p.api_abono_prestamo.map(a => (
+                                  <p key={a.id}>{a.fecha_abono}: ${a.monto_abono.toLocaleString()} ({a.quien_descunto})</p>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={newAbono.monto_abono}
+                            onChange={(e) => setNewAbono({ ...newAbono, monto_abono: e.target.value })}
+                            placeholder="Monto abono"
+                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                          />
+                          
+                          <input
+                            type="date"
+                            value={newAbono.fecha_abono}
+                            onChange={(e) => setNewAbono({ ...newAbono, fecha_abono: e.target.value })}
+                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                          />
+                          
+                          <select
+                            value={newAbono.quien_descunto}
+                            onChange={(e) => setNewAbono({ ...newAbono, quien_descunto: e.target.value })}
+                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                          >
+                            <option value="Ganaderia OL">Ganaderia OL</option>
+                            <option value="Santiago">Santiago</option>
+                          </select>
+                          
+                          <input
+                            type="text"
+                            value={newAbono.observaciones}
+                            onChange={(e) => setNewAbono({ ...newAbono, observaciones: e.target.value })}
+                            placeholder="Observaciones"
+                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                          />
+                          
+                          <button 
+                            onClick={() => addAbono(selectedPrestamo)}
+                            className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold"
+                          >
+                            ✅ Guardar Abono
+                          </button>
+                          
+                          <button 
+                            onClick={() => setSelectedPrestamo(null)}
+                            className="w-full bg-gray-600 text-white px-4 py-2 rounded font-bold"
+                          >
+                            ← Volver
+                          </button>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ==================== BALANCE PRÉSTAMOS ==================== */}
+      {activeTab === 'balance-prestamos' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📊 Balance de Préstamos</h3>
+          
+          {balancePrestamos && (
+            <div className="space-y-6">
+              {/* Ganaderia OL */}
+              <div className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+                <h4 className="font-bold text-[#1F3D2B] mb-3">🔴 Ganaderia OL</h4>
+                <p className="text-2xl font-bold text-red-600 mb-3">Total por cobrar: ${balancePrestamos.ganaderia_ol.toLocaleString()}</p>
+                
+                <div className="space-y-2">
+                  {balancePrestamos.detalles.ganaderia_ol.map(p => (
+                    <div key={p.id} className="p-2 bg-white rounded border border-[#D8D2BE] text-sm">
+                      <div className="flex justify-between">
+                        <span className="font-bold">{p.nombre_trabajador}</span>
+                        <span className={p.saldo_pendiente === 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                          ${p.saldo_pendiente.toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | {p.estado}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Santiago */}
+              <div className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+                <h4 className="font-bold text-[#1F3D2B] mb-3">🟠 Santiago</h4>
+                <p className="text-2xl font-bold text-orange-600 mb-3">Total por cobrar: ${balancePrestamos.santiago.toLocaleString()}</p>
+                
+                <div className="space-y-2">
+                  {balancePrestamos.detalles.santiago.map(p => (
+                    <div key={p.id} className="p-2 bg-white rounded border border-[#D8D2BE] text-sm">
+                      <div className="flex justify-between">
+                        <span className="font-bold">{p.nombre_trabajador}</span>
+                        <span className={p.saldo_pendiente === 0 ? 'text-green-600 font-bold' : 'text-orange-600 font-bold'}>
+                          ${p.saldo_pendiente.toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | {p.estado}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* TOTAL */}
+              <div className="p-4 bg-[#1F3D2B] rounded border-2 border-[#1F3D2B] text-center">
+                <p className="text-white text-lg">BALANCE TOTAL</p>
+                <p className="text-3xl font-bold text-yellow-300">
+                  ${(balancePrestamos.ganaderia_ol + balancePrestamos.santiago).toLocaleString()}
+                </p>
+                <p className="text-white text-sm">POR COBRAR</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
