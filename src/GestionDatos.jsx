@@ -649,15 +649,32 @@ export default function GestionDatos() {
                       <>
                         <h4 className="font-bold text-[#1F3D2B] mb-3">{p.nombre_trabajador}</h4>
                         
-                        <div className="mb-3 p-3 bg-white rounded border border-[#D8D2BE]">
-                          <p className="text-sm"><span className="font-bold">Préstamo Original:</span> ${p.monto_prestado.toLocaleString()}</p>
-                          <p className="text-sm"><span className="font-bold">Saldo Pendiente:</span> ${p.saldo_pendiente.toLocaleString()}</p>
+                        <div className="mb-3 p-4 bg-white rounded border-2 border-[#D8D2BE]">
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div className="p-2 bg-[#F5F2E6] rounded">
+                              <p className="text-xs text-[#6B5D45] font-bold">PRÉSTAMO ORIGINAL</p>
+                              <p className="text-lg font-bold text-[#1F3D2B]">${p.monto_prestado.toLocaleString()}</p>
+                            </div>
+                            <div className="p-2 bg-blue-100 rounded border-2 border-blue-400">
+                              <p className="text-xs text-blue-700 font-bold">TOTAL ABONADO</p>
+                              <p className="text-lg font-bold text-blue-700">${(p.monto_prestado - p.saldo_pendiente).toLocaleString()}</p>
+                            </div>
+                          </div>
+
+                          <div className="p-3 bg-red-100 rounded border-2 border-red-400 mb-3">
+                            <p className="text-xs text-red-700 font-bold">SALDO PENDIENTE</p>
+                            <p className="text-2xl font-bold text-red-700">${p.saldo_pendiente.toLocaleString()}</p>
+                          </div>
+
                           {p.api_abono_prestamo?.length > 0 && (
                             <>
-                              <p className="text-sm font-bold mt-2">Historial de Abonos:</p>
-                              <div className="text-xs space-y-1">
-                                {p.api_abono_prestamo.map(a => (
-                                  <p key={a.id}>{a.fecha_abono}: ${a.monto_abono.toLocaleString()} ({a.quien_descunto})</p>
+                              <p className="text-sm font-bold mt-2 mb-2">📋 Historial de Abonos:</p>
+                              <div className="text-xs space-y-1 bg-[#F5F2E6] p-2 rounded max-h-32 overflow-y-auto">
+                                {[...p.api_abono_prestamo].reverse().map(a => (
+                                  <p key={a.id} className="flex justify-between">
+                                    <span><span className="font-bold">{a.fecha_abono}:</span> ${a.monto_abono.toLocaleString()}</span>
+                                    <span className="text-[#6B5D45]">({a.quien_descunto})</span>
+                                  </p>
                                 ))}
                               </div>
                             </>
@@ -665,49 +682,73 @@ export default function GestionDatos() {
                         </div>
 
                         <div className="space-y-2">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={newAbono.monto_abono}
-                            onChange={(e) => setNewAbono({ ...newAbono, monto_abono: e.target.value })}
-                            placeholder="Monto abono"
-                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
-                          />
+                          <div>
+                            <label className="text-sm font-bold text-[#1F3D2B]">Monto Abono</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={newAbono.monto_abono}
+                              onChange={(e) => setNewAbono({ ...newAbono, monto_abono: e.target.value })}
+                              placeholder="0"
+                              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                            />
+                          </div>
+
+                          {newAbono.monto_abono && (
+                            <div className="p-3 bg-green-100 rounded border-2 border-green-400">
+                              <p className="text-xs text-green-700 font-bold mb-1">NUEVO SALDO DESPUÉS DEL ABONO</p>
+                              <p className="text-xl font-bold text-green-700">
+                                ${Math.max(0, p.saldo_pendiente - parseFloat(newAbono.monto_abono)).toLocaleString()}
+                              </p>
+                              {Math.max(0, p.saldo_pendiente - parseFloat(newAbono.monto_abono)) === 0 && (
+                                <p className="text-xs text-green-600 font-bold mt-1">✅ PRÉSTAMO COMPLETAMENTE PAGADO</p>
+                              )}
+                            </div>
+                          )}
                           
-                          <input
-                            type="date"
-                            value={newAbono.fecha_abono}
-                            onChange={(e) => setNewAbono({ ...newAbono, fecha_abono: e.target.value })}
-                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
-                          />
+                          <div>
+                            <label className="text-sm font-bold text-[#1F3D2B]">Fecha Abono</label>
+                            <input
+                              type="date"
+                              value={newAbono.fecha_abono}
+                              onChange={(e) => setNewAbono({ ...newAbono, fecha_abono: e.target.value })}
+                              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                            />
+                          </div>
                           
-                          <select
-                            value={newAbono.quien_descunto}
-                            onChange={(e) => setNewAbono({ ...newAbono, quien_descunto: e.target.value })}
-                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
-                          >
-                            <option value="Ganaderia OL">Ganaderia OL</option>
-                            <option value="Santiago">Santiago</option>
-                          </select>
+                          <div>
+                            <label className="text-sm font-bold text-[#1F3D2B]">¿Quién Descuenta?</label>
+                            <select
+                              value={newAbono.quien_descunto}
+                              onChange={(e) => setNewAbono({ ...newAbono, quien_descunto: e.target.value })}
+                              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                            >
+                              <option value="Ganaderia OL">Ganaderia OL</option>
+                              <option value="Santiago">Santiago</option>
+                            </select>
+                          </div>
                           
-                          <input
-                            type="text"
-                            value={newAbono.observaciones}
-                            onChange={(e) => setNewAbono({ ...newAbono, observaciones: e.target.value })}
-                            placeholder="Observaciones"
-                            className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
-                          />
+                          <div>
+                            <label className="text-sm font-bold text-[#1F3D2B]">Observación (opcional)</label>
+                            <input
+                              type="text"
+                              value={newAbono.observaciones}
+                              onChange={(e) => setNewAbono({ ...newAbono, observaciones: e.target.value })}
+                              placeholder="Descuento de nómina, pago parcial, etc"
+                              className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                            />
+                          </div>
                           
                           <button 
                             onClick={() => addAbono(selectedPrestamo)}
-                            className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold"
+                            className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700"
                           >
                             ✅ Guardar Abono
                           </button>
                           
                           <button 
                             onClick={() => setSelectedPrestamo(null)}
-                            className="w-full bg-gray-600 text-white px-4 py-2 rounded font-bold"
+                            className="w-full bg-gray-600 text-white px-4 py-2 rounded font-bold hover:bg-gray-700"
                           >
                             ← Volver
                           </button>

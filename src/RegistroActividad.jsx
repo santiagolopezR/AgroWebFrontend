@@ -386,10 +386,24 @@ export default function RegistroActividad() {
 
           {/* LOTES MÚLTIPLES */}
           <div>
-            <label className="text-sm font-bold text-[#1F3D2B] mb-2 block">Lotes * (Selecciona múltiples)</label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="flex justify-between items-center mb-3">
+              <label className="text-sm font-bold text-[#1F3D2B]">Lotes * (Selecciona múltiples)</label>
+              {lotesSeleccionados.length > 0 && (
+                <span className="text-xs font-bold bg-green-600 text-white px-3 py-1 rounded">
+                  ✅ {lotesSeleccionados.length} lote(s) | {(() => {
+                    const totalHa = lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)
+                    return `${totalHa} ha`
+                  })()}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-3">
               {lotes.map(l => (
-                <label key={l.id} className="flex items-center p-2 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE] cursor-pointer">
+                <label key={l.id} className={`flex items-center p-3 rounded border-2 cursor-pointer transition ${
+                  lotesSeleccionados.includes(l.id)
+                    ? 'bg-green-100 border-green-600 shadow-md'
+                    : 'bg-[#F5F2E6] border-[#D8D2BE] hover:bg-[#E8E4D0]'
+                }`}>
                   <input
                     type="checkbox"
                     checked={lotesSeleccionados.includes(l.id)}
@@ -400,15 +414,15 @@ export default function RegistroActividad() {
                         setLotesSeleccionados(lotesSeleccionados.filter(id => id !== l.id))
                       }
                     }}
-                    className="mr-2"
+                    className="mr-2 w-4 h-4 cursor-pointer"
                   />
-                  <span className="text-sm font-bold">{l.nombre} ({l.area_hectareas}ha)</span>
+                  <div className="text-sm">
+                    <p className="font-bold text-[#1F3D2B]">{l.nombre}</p>
+                    <p className="text-xs text-[#6B5D45]">{l.area_hectareas} ha</p>
+                  </div>
                 </label>
               ))}
             </div>
-            {lotesSeleccionados.length > 0 && (
-              <p className="text-xs text-green-600 mt-2">✅ {lotesSeleccionados.length} lote(s) seleccionado(s)</p>
-            )}
           </div>
         </div>
 
