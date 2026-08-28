@@ -384,9 +384,9 @@ export default function RegistroActividad() {
             </div>
           </div>
 
-          {/* LOTES MÚLTIPLES */}
+          {/* LOTES MÚLTIPLES - SELECT ELEGANTE */}
           <div>
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center mb-2">
               <label className="text-sm font-bold text-[#1F3D2B]">Lotes * (Selecciona múltiples)</label>
               {lotesSeleccionados.length > 0 && (
                 <span className="text-xs font-bold bg-green-600 text-white px-3 py-1 rounded">
@@ -397,32 +397,46 @@ export default function RegistroActividad() {
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-3">
+
+            {/* SELECT MULTIPLE */}
+            <select 
+              multiple 
+              value={lotesSeleccionados.map(String)}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value))
+                setLotesSeleccionados(selected)
+              }}
+              className="w-full p-3 border-2 border-[#D8D2BE] rounded text-sm bg-white max-h-48"
+            >
               {lotes.map(l => (
-                <label key={l.id} className={`flex items-center p-3 rounded border-2 cursor-pointer transition ${
-                  lotesSeleccionados.includes(l.id)
-                    ? 'bg-green-100 border-green-600 shadow-md'
-                    : 'bg-[#F5F2E6] border-[#D8D2BE] hover:bg-[#E8E4D0]'
-                }`}>
-                  <input
-                    type="checkbox"
-                    checked={lotesSeleccionados.includes(l.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setLotesSeleccionados([...lotesSeleccionados, l.id])
-                      } else {
-                        setLotesSeleccionados(lotesSeleccionados.filter(id => id !== l.id))
-                      }
-                    }}
-                    className="mr-2 w-4 h-4 cursor-pointer"
-                  />
-                  <div className="text-sm">
-                    <p className="font-bold text-[#1F3D2B]">{l.nombre}</p>
-                    <p className="text-xs text-[#6B5D45]">{l.area_hectareas} ha</p>
-                  </div>
-                </label>
+                <option key={l.id} value={l.id}>
+                  {l.nombre} ({l.area_hectareas} ha)
+                </option>
               ))}
-            </div>
+            </select>
+
+            <p className="text-xs text-[#6B5D45] mt-2">💡 Ctrl+Click (Windows) o Cmd+Click (Mac) para seleccionar múltiples</p>
+
+            {/* LOTES SELECCIONADOS - CHIPS */}
+            {lotesSeleccionados.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {lotesSeleccionados.map(loteId => {
+                  const lote = lotes.find(l => l.id === loteId)
+                  return (
+                    <div key={lote.id} className="flex items-center gap-1 bg-green-100 border-2 border-green-500 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                      <span>{lote.nombre} ({lote.area_hectareas}ha)</span>
+                      <button
+                        type="button"
+                        onClick={() => setLotesSeleccionados(lotesSeleccionados.filter(id => id !== lote.id))}
+                        className="ml-1 text-green-600 hover:text-red-600 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
