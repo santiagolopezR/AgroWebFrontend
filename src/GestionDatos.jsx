@@ -80,7 +80,7 @@ export default function GestionDatos() {
 
   const createFinca = async () => {
     if (!newFinca) return
-    const { error } = await supabase.from('api_finca').insert([{ nombre: newFinca, user_id: user }])
+    const { error } = await supabase.from('api_finca').insert([{ nombre: newFinca, ubicacion: '', user_id: user }])
     if (error) {
       alert('No se pudo crear la finca: ' + error.message)
       return
