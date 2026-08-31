@@ -160,6 +160,10 @@ export default function Dashboard_V2() {
   const [filtroActividad, setFiltroActividad] = useState(null)
   const [mapExpandido, setMapExpandido] = useState(false)
 
+  const [filtroMesResumen, setFiltroMesResumen] = useState('')
+  const [filtroTipoResumen, setFiltroTipoResumen] = useState('')
+  const [filtroLoteResumen, setFiltroLoteResumen] = useState('')
+
   const [dataError, setDataError] = useState('')
   const [mapError, setMapError] = useState('')
   const [cargandoDatos, setCargandoDatos] = useState(false)
@@ -303,7 +307,7 @@ export default function Dashboard_V2() {
           const loteRef = (lotesData || []).find((l) => l.id === rel.lote_id)
           const loteArea = Number(loteRef?.area_hectareas ?? loteRef?.superficie ?? 0) || 0
           if (!lotesPorActividad[act.id]) lotesPorActividad[act.id] = []
-          lotesPorActividad[act.id].push(loteRef?.nombre || 'Lote')
+          lotesPorActividad[act.id].push({ id: rel.lote_id, nombre: loteRef?.nombre || 'Lote' })
           areaTotalPorActividad[act.id] = (areaTotalPorActividad[act.id] || 0) + loteArea
           actividadesFincaMap.set(act.id, act)
         }
@@ -316,9 +320,17 @@ export default function Dashboard_V2() {
           }))
         }
 
-        const resumen = [...actividadesFincaMap.values()]
+        // Costo prorrateado por lote: si la actividad tocó un solo lote, el costo es 100% suyo;
+        // si tocó varios, se reparte proporcional al área de cada uno (mismo criterio que los productos).
+        const costoParaLote = (act, areaLote) => {
+          const numLotes = (lotesPorActividad[act.id] || []).length || 1
+          const areaTotal = areaTotalPorActividad[act.id] || 0
+          if (numLotes <= 1 || !areaLote || areaTotal <= 0) return act.costo_total || 0
+          return (act.costo_total || 0) * (areaLote / areaTotal)
+        }
+
+        const resumenCompleto = [...actividadesFincaMap.values()]
           .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
-          .slice(0, 20)
           .map((act) => ({
             ...act,
             tipoNombre: tipoNombrePorId[act.tipo_id] || 'Actividad',
@@ -326,7 +338,7 @@ export default function Dashboard_V2() {
             productos: conDosisRecalculada(act.id),
           }))
 
-        if (!cancelado) setActividadesResumen(resumen)
+        if (!cancelado) setActividadesResumen(resumenCompleto)
 
         // Enriquecimiento opcional de geometría desde el backend REST (no bloqueante)
         const geoApi = await obtenerGeometriaDesdeApi(fincaId)
@@ -352,6 +364,11 @@ export default function Dashboard_V2() {
 
           const areaLote = Number(lote.area_hectareas ?? lote.superficie ?? 0) || null
 
+          // Costo histórico total del lote: suma del costo prorrateado de TODAS sus actividades
+          // (no solo las 5 recientes que se muestran en el historial)
+          const costoTotalLote = actividadesLote.reduce((sum, a) => sum + costoParaLote(a, areaLote), 0)
+          const costoPorHa = areaLote ? Number((costoTotalLote / areaLote).toFixed(2)) : null
+
           return {
             ...lote,
             estado,
@@ -359,6 +376,8 @@ export default function Dashboard_V2() {
             punto,
             fumigadoEsteMes,
             abonadoEsteMes,
+            costoTotalLote: Number(costoTotalLote.toFixed(2)),
+            costoPorHa,
             actividadesRecientes: actividadesLote.slice(0, 5).map((a) => {
               const numLotes = (lotesPorActividad[a.id] || []).length || 1
               const compartido = numLotes > 1
@@ -380,7 +399,13 @@ export default function Dashboard_V2() {
 
                 return { ...p, dosisPorHa, compartido, numLotes, cantidadEsteLote }
               })
-              return { ...a, tipoNombre: tipoNombrePorId[a.tipo_id] || 'Actividad', productos }
+              return {
+                ...a,
+                tipoNombre: tipoNombrePorId[a.tipo_id] || 'Actividad',
+                productos,
+                costoEsteLote: Number(costoParaLote(a, areaLote).toFixed(2)),
+                compartidoConOtrosLotes: numLotes > 1,
+              }
             }),
           }
         })
@@ -542,6 +567,21 @@ export default function Dashboard_V2() {
   const totalLotes = lotesGeo.length
   const maxMensual = Math.max(1, ...actividadesPorMes.map((b) => b.total))
 
+  // Meses con actividades registradas, para poblar el filtro de mes
+  const mesesDisponibles = [...new Set(actividadesResumen.map((a) => (a.fecha || '').slice(0, 7)).filter(Boolean))].sort().reverse()
+
+  const actividadesFiltradas = actividadesResumen.filter((a) => {
+    if (filtroMesResumen && !(a.fecha || '').startsWith(filtroMesResumen)) return false
+    if (filtroTipoResumen && String(a.tipo_id) !== filtroTipoResumen) return false
+    if (filtroLoteResumen && !a.lotes.some((l) => String(l.id) === filtroLoteResumen)) return false
+    return true
+  })
+  const actividadesMostradas = actividadesFiltradas.slice(0, 50)
+  const totalesFiltrados = {
+    cantidad: actividadesFiltradas.length,
+    costo: actividadesFiltradas.reduce((sum, a) => sum + (a.costo_total || 0), 0),
+  }
+
   return (
     <div style={styles.page}>
       <style>{cssBase}</style>
@@ -666,6 +706,14 @@ export default function Dashboard_V2() {
                   {selectedLote.abonadoEsteMes ? 'Al día' : 'Pendiente'}
                 </span>
               </div>
+              <div style={styles.detailFila}>
+                <span style={styles.detailKey}>Costo total (histórico)</span>
+                <span style={styles.detailVal}>${selectedLote.costoTotalLote.toLocaleString()}</span>
+              </div>
+              <div style={styles.detailFila}>
+                <span style={styles.detailKey}>Costo / ha</span>
+                <span style={styles.detailVal}>{selectedLote.costoPorHa != null ? `$${selectedLote.costoPorHa.toLocaleString()}` : '—'}</span>
+              </div>
 
               <p style={{ ...styles.detailKey, marginTop: 16, marginBottom: 8 }}>Historial de actividades</p>
               {selectedLote.actividadesRecientes?.length > 0 ? (
@@ -675,6 +723,12 @@ export default function Dashboard_V2() {
                       <div style={styles.actividadFila}>
                         <span style={{ fontWeight: 700 }}>{a.tipoNombre}</span>
                         <span style={styles.mutedText}>{a.fecha}</span>
+                      </div>
+                      <div style={styles.actividadFila}>
+                        <span style={styles.productoNota}>
+                          Costo de este lote{a.compartidoConOtrosLotes ? ' (prorrateado por área)' : ''}
+                        </span>
+                        <span style={{ fontWeight: 700 }}>${a.costoEsteLote.toLocaleString()}</span>
                       </div>
                       {a.productos.length > 0 ? (
                         <div style={styles.productosLista}>
@@ -739,39 +793,87 @@ export default function Dashboard_V2() {
       {/* RESUMEN GENERAL DE ACTIVIDADES DE LA FINCA */}
       <div style={{ ...styles.chartCard, marginTop: 24 }}>
         <h3 style={styles.h3}>📋 Resumen de Actividades de la Finca</h3>
+
         {actividadesResumen.length === 0 ? (
           <p style={{ ...styles.mutedText, marginTop: 8 }}>No hay actividades registradas todavía.</p>
         ) : (
-          <div style={styles.tablaWrapper}>
-            <table style={styles.tabla}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Fecha</th>
-                  <th style={styles.th}>Tipo</th>
-                  <th style={styles.th}>Lote(s)</th>
-                  <th style={styles.th}>Responsable</th>
-                  <th style={styles.th}>Productos aplicados</th>
-                  <th style={styles.thRight}>Costo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {actividadesResumen.map((a) => (
-                  <tr key={a.id}>
-                    <td style={styles.td}>{a.fecha}</td>
-                    <td style={styles.td}>{a.tipoNombre}</td>
-                    <td style={styles.td}>{a.lotes.join(', ') || '—'}</td>
-                    <td style={styles.td}>{a.responsable || '—'}</td>
-                    <td style={styles.td}>
-                      {a.productos.length > 0
-                        ? a.productos.map((p) => `${p.nombre} (${p.cantidad ?? '—'}${p.unidad}, ${p.dosisPorHa ?? '—'}/ha)`).join(' · ')
-                        : '—'}
-                    </td>
-                    <td style={styles.tdRight}>${(a.costo_total || 0).toLocaleString()}</td>
-                  </tr>
+          <>
+            <div style={styles.filtrosResumenRow}>
+              <select value={filtroMesResumen} onChange={(e) => setFiltroMesResumen(e.target.value)} style={styles.selectChico}>
+                <option value="">Todos los meses</option>
+                {mesesDisponibles.map((m) => (
+                  <option key={m} value={m}>{m}</option>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </select>
+              <select value={filtroTipoResumen} onChange={(e) => setFiltroTipoResumen(e.target.value)} style={styles.selectChico}>
+                <option value="">Todos los tipos</option>
+                {tiposActividad.map((t) => (
+                  <option key={t.id} value={String(t.id)}>{t.nombre}</option>
+                ))}
+              </select>
+              <select value={filtroLoteResumen} onChange={(e) => setFiltroLoteResumen(e.target.value)} style={styles.selectChico}>
+                <option value="">Todos los lotes</option>
+                {lotesGeo.map((l) => (
+                  <option key={l.id} value={String(l.id)}>{l.nombre}</option>
+                ))}
+              </select>
+              {(filtroMesResumen || filtroTipoResumen || filtroLoteResumen) && (
+                <button
+                  type="button"
+                  onClick={() => { setFiltroMesResumen(''); setFiltroTipoResumen(''); setFiltroLoteResumen('') }}
+                  style={styles.botonChicoSecundario}
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+
+            <div style={styles.totalesFiltroRow}>
+              <span>{totalesFiltrados.cantidad} actividad(es)</span>
+              <span>·</span>
+              <span>${totalesFiltrados.costo.toLocaleString()} en total</span>
+            </div>
+
+            {actividadesFiltradas.length === 0 ? (
+              <p style={{ ...styles.mutedText, marginTop: 8 }}>Ninguna actividad coincide con estos filtros.</p>
+            ) : (
+              <div style={styles.tablaWrapper}>
+                <table style={styles.tabla}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Fecha</th>
+                      <th style={styles.th}>Tipo</th>
+                      <th style={styles.th}>Lote(s)</th>
+                      <th style={styles.th}>Responsable</th>
+                      <th style={styles.th}>Productos aplicados</th>
+                      <th style={styles.thRight}>Costo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {actividadesMostradas.map((a) => (
+                      <tr key={a.id}>
+                        <td style={styles.td}>{a.fecha}</td>
+                        <td style={styles.td}>{a.tipoNombre}</td>
+                        <td style={styles.td}>{a.lotes.map((l) => l.nombre).join(', ') || '—'}</td>
+                        <td style={styles.td}>{a.responsable || '—'}</td>
+                        <td style={styles.td}>
+                          {a.productos.length > 0
+                            ? a.productos.map((p) => `${p.nombre} (${p.cantidad ?? '—'}${p.unidad}, ${p.dosisPorHa ?? '—'}/ha)`).join(' · ')
+                            : '—'}
+                        </td>
+                        <td style={styles.tdRight}>${(a.costo_total || 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {actividadesFiltradas.length > actividadesMostradas.length && (
+                  <p style={{ ...styles.mutedText, marginTop: 8 }}>
+                    Mostrando {actividadesMostradas.length} de {actividadesFiltradas.length}. Afiná los filtros para ver el resto.
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -814,6 +916,7 @@ const styles = {
   mapCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
   mapHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   botonExpandir: { padding: '6px 12px', background: BORDER, color: TEXT, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  botonChicoSecundario: { padding: '6px 12px', background: BORDER, color: TEXT, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
   filtrosRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 },
   filtroPill: { padding: '6px 14px', background: BORDER, color: TEXT, border: 'none', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
   filtroPillActivo: { padding: '6px 14px', background: ACCENT, color: '#0F1712', border: 'none', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
@@ -836,6 +939,9 @@ const styles = {
   productoFila: { fontSize: 11, color: TEXT_MUTED, padding: '2px 0' },
   productoNota: { color: TEXT_MUTED, opacity: 0.85 },
   productoFilaVacio: { fontSize: 11, color: TEXT_MUTED, marginTop: 4, paddingLeft: 10, fontStyle: 'italic' },
+  filtrosResumenRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' },
+  selectChico: { padding: '6px 10px', border: `2px solid ${BORDER}`, borderRadius: 6, fontSize: 12, background: SURFACE, color: TEXT },
+  totalesFiltroRow: { display: 'flex', gap: 8, fontSize: 12, color: TEXT_MUTED, marginTop: 10, fontWeight: 600 },
   tablaWrapper: { overflowX: 'auto', marginTop: 8 },
   tabla: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: { textAlign: 'left', padding: '8px 10px', color: TEXT_MUTED, fontSize: 12, borderBottom: `2px solid ${BORDER}`, whiteSpace: 'nowrap' },
