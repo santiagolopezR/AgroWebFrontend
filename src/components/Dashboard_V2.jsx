@@ -289,16 +289,31 @@ export default function Dashboard_V2() {
           }
         }
 
-        // Lotes por actividad + lista deduplicada de actividades de la finca (para el resumen general)
+        // Lotes por actividad (nombre + área actual) + lista deduplicada de actividades de la finca.
+        // La dosis/ha se recalcula siempre en vivo (cantidad / área actual de los lotes vinculados) en
+        // vez de confiar en dosis_por_hectarea guardada al registrar: si el área de algún lote cambió
+        // desde entonces, ese valor guardado queda desactualizado y puede dar resultados imposibles
+        // (una porción "de un lote" mayor que el total aplicado).
         const lotesPorActividad = {}
+        const areaTotalPorActividad = {}
         const actividadesFincaMap = new Map()
         for (const rel of relFinca) {
           const act = rel.api_actividad
           if (!act) continue
-          const loteNombre = (lotesData || []).find((l) => l.id === rel.lote_id)?.nombre || 'Lote'
+          const loteRef = (lotesData || []).find((l) => l.id === rel.lote_id)
+          const loteArea = Number(loteRef?.area_hectareas ?? loteRef?.superficie ?? 0) || 0
           if (!lotesPorActividad[act.id]) lotesPorActividad[act.id] = []
-          lotesPorActividad[act.id].push(loteNombre)
+          lotesPorActividad[act.id].push(loteRef?.nombre || 'Lote')
+          areaTotalPorActividad[act.id] = (areaTotalPorActividad[act.id] || 0) + loteArea
           actividadesFincaMap.set(act.id, act)
+        }
+
+        const conDosisRecalculada = (actividadId) => {
+          const areaTotal = areaTotalPorActividad[actividadId] || 0
+          return (productosPorActividad[actividadId] || []).map((p) => ({
+            ...p,
+            dosisPorHa: areaTotal > 0 ? Number((p.cantidad / areaTotal).toFixed(2)) : p.dosisPorHa,
+          }))
         }
 
         const resumen = [...actividadesFincaMap.values()]
@@ -308,7 +323,7 @@ export default function Dashboard_V2() {
             ...act,
             tipoNombre: tipoNombrePorId[act.tipo_id] || 'Actividad',
             lotes: lotesPorActividad[act.id] || [],
-            productos: productosPorActividad[act.id] || [],
+            productos: conDosisRecalculada(act.id),
           }))
 
         if (!cancelado) setActividadesResumen(resumen)
@@ -335,7 +350,7 @@ export default function Dashboard_V2() {
           const fumigadoEsteMes = actividadesLote.some((a) => idsFumigacion.includes(a.tipo_id) && a.fecha >= inicioMes)
           const abonadoEsteMes = actividadesLote.some((a) => idsAbono.includes(a.tipo_id) && a.fecha >= inicioMes)
 
-          const areaLote = lote.area_hectareas ?? lote.superficie ?? null
+          const areaLote = Number(lote.area_hectareas ?? lote.superficie ?? 0) || null
 
           return {
             ...lote,
@@ -346,13 +361,24 @@ export default function Dashboard_V2() {
             abonadoEsteMes,
             actividadesRecientes: actividadesLote.slice(0, 5).map((a) => {
               const numLotes = (lotesPorActividad[a.id] || []).length || 1
+              const compartido = numLotes > 1
+              const areaTotalActividad = areaTotalPorActividad[a.id] || 0
+
               const productos = (productosPorActividad[a.id] || []).map((p) => {
-                const compartido = numLotes > 1
+                // Reparto proporcional por área actual: garantiza que la suma de las porciones de
+                // todos los lotes de la actividad de vuelta a dar exactamente el total aplicado.
                 const cantidadEsteLote =
-                  compartido && p.dosisPorHa != null && areaLote != null
-                    ? Number((p.dosisPorHa * areaLote).toFixed(2))
+                  compartido && areaLote != null && areaTotalActividad > 0
+                    ? Number((p.cantidad * (areaLote / areaTotalActividad)).toFixed(2))
                     : null
-                return { ...p, compartido, numLotes, cantidadEsteLote }
+                const dosisPorHa =
+                  compartido && areaTotalActividad > 0
+                    ? Number((p.cantidad / areaTotalActividad).toFixed(2))
+                    : areaLote
+                      ? Number((p.cantidad / areaLote).toFixed(2))
+                      : p.dosisPorHa
+
+                return { ...p, dosisPorHa, compartido, numLotes, cantidadEsteLote }
               })
               return { ...a, tipoNombre: tipoNombrePorId[a.tipo_id] || 'Actividad', productos }
             }),
