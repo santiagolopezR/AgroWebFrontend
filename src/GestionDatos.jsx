@@ -73,13 +73,18 @@ export default function GestionDatos() {
 
   // ==================== FINCAS ====================
   const fetchFincas = async () => {
-    const { data } = await supabase.from('api_finca').select('*').eq('user_id', user)
+    const { data, error } = await supabase.from('api_finca').select('*').eq('user_id', user)
+    if (error) console.error('No se pudieron cargar las fincas')
     setFincas(data || [])
   }
 
   const createFinca = async () => {
     if (!newFinca) return
-    await supabase.from('api_finca').insert([{ nombre: newFinca, user_id: user }])
+    const { error } = await supabase.from('api_finca').insert([{ nombre: newFinca, user_id: user }])
+    if (error) {
+      alert('No se pudo crear la finca: ' + error.message)
+      return
+    }
     setNewFinca('')
     fetchFincas()
   }
@@ -166,12 +171,16 @@ export default function GestionDatos() {
 
   const createProveedor = async () => {
     if (!newProveedor.nombre) return
-    await supabase.from('api_proveedor').insert([{
+    const { error } = await supabase.from('api_proveedor').insert([{
       nombre: newProveedor.nombre,
       contacto: newProveedor.contacto,
       email: newProveedor.email,
       user_id: user
     }])
+    if (error) {
+      alert('No se pudo crear el proveedor: ' + error.message)
+      return
+    }
     setNewProveedor({ nombre: '', contacto: '', email: '' })
     fetchProveedores()
   }
@@ -189,7 +198,11 @@ export default function GestionDatos() {
 
   const createCategoria = async () => {
     if (!newCategoria) return
-    await supabase.from('api_categoria').insert([{ nombre: newCategoria, user_id: user }])
+    const { error } = await supabase.from('api_categoria').insert([{ nombre: newCategoria, user_id: user }])
+    if (error) {
+      alert('No se pudo crear la categoría: ' + error.message)
+      return
+    }
     setNewCategoria('')
     fetchCategorias()
   }
@@ -207,14 +220,18 @@ export default function GestionDatos() {
 
   const createCostoFijo = async () => {
     if (!newCostoFijo.nombre || !newCostoFijo.valor_unitario) return
-    
-    await supabase.from('api_costo_fijo').insert([{
+
+    const { error } = await supabase.from('api_costo_fijo').insert([{
       nombre: newCostoFijo.nombre,
       valor_unitario: parseFloat(newCostoFijo.valor_unitario),
       unidad: newCostoFijo.unidad,
       user_id: user
     }])
-    
+    if (error) {
+      alert('No se pudo crear el costo fijo: ' + error.message)
+      return
+    }
+
     setNewCostoFijo({ nombre: '', valor_unitario: '', unidad: '' })
     fetchCostosFijos()
   }
@@ -233,8 +250,8 @@ export default function GestionDatos() {
 
   const createPrestamo = async () => {
     if (!newPrestamo.nombre_trabajador || !newPrestamo.monto_prestado) return
-    
-    await supabase.from('api_prestamo_trabajador').insert([{
+
+    const { error } = await supabase.from('api_prestamo_trabajador').insert([{
       nombre_trabajador: newPrestamo.nombre_trabajador,
       monto_prestado: parseFloat(newPrestamo.monto_prestado),
       fecha_prestamo: newPrestamo.fecha_prestamo,
@@ -243,8 +260,12 @@ export default function GestionDatos() {
       descripcion: newPrestamo.descripcion,
       user_id: user
     }])
-    
-    setNewPrestamo({ 
+    if (error) {
+      alert('No se pudo registrar el préstamo: ' + error.message)
+      return
+    }
+
+    setNewPrestamo({
       nombre_trabajador: '', 
       monto_prestado: '', 
       fecha_prestamo: '',
