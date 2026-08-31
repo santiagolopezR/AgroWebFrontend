@@ -7,6 +7,7 @@ import RegistroActividad from './RegistroActividad'
 import RegistroGasto from './RegistroGasto'
 import EditarGasto from './EditarGasto'
 import ImportarLotes from './ImportarLotes'
+import Dashboard_V2 from './components/Dashboard_V2'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
@@ -59,6 +60,17 @@ export default function App() {
             }`}
           >
             📊 Dashboard
+          </button>
+
+          <button
+            onClick={() => setCurrentPage('dashboard-v2')}
+            className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
+              currentPage === 'dashboard-v2'
+                ? 'bg-white text-[#1F3D2B]'
+                : 'hover:bg-[#0F2116]'
+            }`}
+          >
+            🌍 Dashboard V2.0
           </button>
 
           <button
@@ -139,6 +151,7 @@ export default function App() {
       {/* CONTENT */}
       <div className="flex-1 overflow-y-auto">
         {currentPage === 'dashboard' && <Dashboard />}
+        {currentPage === 'dashboard-v2' && <Dashboard_V2 />}
         {currentPage === 'gestiondatos' && <GestionDatos />}
         {currentPage === 'zafras' && <Zafras />}
         {currentPage === 'registro' && <RegistroActividad />}
