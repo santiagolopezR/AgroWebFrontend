@@ -112,6 +112,7 @@ export default function GestionDatos() {
     const payload = {
       nombre: newLote.nombre,
       finca_id: parseInt(lotesFincaId),
+      superficie: parseFloat(newLote.area_hectareas),
       area_hectareas: parseFloat(newLote.area_hectareas),
       user_id: user,
       ...(geo && !geo.error ? geo : {})

@@ -299,34 +299,36 @@ export default function RegistroActividad() {
 
       // Guardar items de productos
       for (const item of items) {
-        await supabase.from('api_actividad_producto').insert([{
+        const { error: errorItem } = await supabase.from('api_actividad_producto').insert([{
           actividad_id: actividadId,
           producto_id: item.productoId ? parseInt(item.productoId) : null,
-          cantidad_aplicada: parseFloat(item.cantidad),
+          cantidad: parseFloat(item.cantidad),
           dosis_por_hectarea: parseFloat(item.dosisHa),
           precio_unitario: parseFloat(item.precioUnitario),
           total: item.total
         }])
+        if (errorItem) console.error('No se pudo guardar un item de producto de la actividad')
       }
 
       // Guardar costos adicionales
       for (const costo of costosAdicionales) {
-        await supabase.from('api_costo_adicional').insert([{
+        const { error: errorCosto } = await supabase.from('api_costo_adicional').insert([{
           actividad_id: actividadId,
           costo_fijo_id: parseInt(costo.costo_fijo_id),
           cantidad: parseFloat(costo.cantidad),
           valor_total: costo.valor_total,
           user_id: user
         }])
+        if (errorCosto) console.error('No se pudo guardar un costo adicional de la actividad')
       }
 
       // Guardar vinculación lotes-actividad
       for (const loteId of lotesSeleccionados) {
-        await supabase.from('api_actividad_lote').insert([{
+        const { error: errorLote } = await supabase.from('api_actividad_lote').insert([{
           actividad_id: actividadId,
-          lote_id: parseInt(loteId),
-          user_id: user
+          lote_id: parseInt(loteId)
         }])
+        if (errorLote) console.error('No se pudo vincular un lote a la actividad')
       }
 
       alert('✅ Actividad registrada exitosamente')
