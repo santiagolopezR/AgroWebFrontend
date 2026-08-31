@@ -327,6 +327,7 @@ export default function RegistroGasto() {
           
           if (prodExistente) {
             productoId = prodExistente.id
+            await supabase.from('api_producto').update({ precio_actual: precioUnitario }).eq('id', productoId)
           } else {
             const { data: newProd } = await supabase.from('api_producto').insert([{
               nombre: producto,
@@ -419,6 +420,15 @@ export default function RegistroGasto() {
     if (errorItems) {
       alert('Error: ' + errorItems.message)
       return
+    }
+
+    // Actualiza el precio sugerido de cada producto al último usado, para la próxima vez
+    for (const item of items) {
+      if (!item.productoId || !item.precioUnitario) continue
+      const { error: errorPrecio } = await supabase.from('api_producto')
+        .update({ precio_actual: parseFloat(item.precioUnitario) })
+        .eq('id', parseInt(item.productoId))
+      if (errorPrecio) console.error('No se pudo actualizar el precio sugerido del producto')
     }
 
     alert('✅ Gasto registrado exitosamente')

@@ -321,6 +321,14 @@ export default function RegistroActividad() {
           total: item.total
         }])
         if (errorItem) console.error('No se pudo guardar un item de producto de la actividad')
+
+        // Actualiza el precio sugerido del producto al último usado, para la próxima vez
+        if (item.productoId && item.precioUnitario) {
+          const { error: errorPrecio } = await supabase.from('api_producto')
+            .update({ precio_actual: parseFloat(item.precioUnitario) })
+            .eq('id', parseInt(item.productoId))
+          if (errorPrecio) console.error('No se pudo actualizar el precio sugerido del producto')
+        }
       }
 
       // Guardar costos adicionales
