@@ -70,7 +70,7 @@ export default function App() {
                 : 'hover:bg-[#0F2116]'
             }`}
           >
-            🌍 Dashboard V2.0
+            🗺️ Visualización Mapa
           </button>
 
           <button

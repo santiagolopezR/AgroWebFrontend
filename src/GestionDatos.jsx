@@ -44,7 +44,7 @@ export default function GestionDatos() {
   const [newAbono, setNewAbono] = useState({ 
     monto_abono: '', 
     fecha_abono: '',
-    quien_descunto: 'Ganaderia OL',
+    quien_desconto: 'Ganaderia OL',
     observaciones: ''
   })
   
@@ -292,24 +292,32 @@ export default function GestionDatos() {
       return
     }
     
-    await supabase.from('api_abono_prestamo').insert([{
+    const { error: errorAbono } = await supabase.from('api_abono_prestamo').insert([{
       prestamo_id: prestamoId,
       monto_abono: montoAbono,
       fecha_abono: newAbono.fecha_abono,
-      quien_descunto: newAbono.quien_descunto,
+      quien_desconto: newAbono.quien_desconto,
       observaciones: newAbono.observaciones,
       user_id: user
     }])
-    
+    if (errorAbono) {
+      alert('No se pudo guardar el abono: ' + errorAbono.message)
+      return
+    }
+
     const nuevoSaldo = prestamo.saldo_pendiente - montoAbono
     const nuevoEstado = nuevoSaldo === 0 ? 'pagado' : 'activo'
-    
-    await supabase.from('api_prestamo_trabajador').update({
+
+    const { error: errorSaldo } = await supabase.from('api_prestamo_trabajador').update({
       saldo_pendiente: nuevoSaldo,
       estado: nuevoEstado
     }).eq('id', prestamoId)
-    
-    setNewAbono({ monto_abono: '', fecha_abono: '', quien_descunto: 'Ganaderia OL', observaciones: '' })
+    if (errorSaldo) {
+      alert('El abono se guardó, pero no se pudo actualizar el saldo: ' + errorSaldo.message)
+      return
+    }
+
+    setNewAbono({ monto_abono: '', fecha_abono: '', quien_desconto: 'Ganaderia OL', observaciones: '' })
     setSelectedPrestamo(null)
     fetchPrestamos()
   }
@@ -320,15 +328,20 @@ export default function GestionDatos() {
     const balance = {
       ganaderia_ol: 0,
       santiago: 0,
+      abonado_ganaderia_ol: 0,
+      abonado_santiago: 0,
       detalles: { ganaderia_ol: [], santiago: [] }
     }
-    
+
     data?.forEach(p => {
+      const abonado = (p.monto_prestado || 0) - (p.saldo_pendiente || 0)
       if (p.quien_otorgo === 'Ganaderia OL') {
         balance.ganaderia_ol += p.saldo_pendiente
+        balance.abonado_ganaderia_ol += abonado
         balance.detalles.ganaderia_ol.push(p)
       } else {
         balance.santiago += p.saldo_pendiente
+        balance.abonado_santiago += abonado
         balance.detalles.santiago.push(p)
       }
     })
@@ -350,7 +363,7 @@ export default function GestionDatos() {
           { id: 'categorias', label: '🏷️ Categorías' },
           { id: 'costos-fijos', label: '💰 Costos Fijos' },
           { id: 'prestamos', label: '💵 Préstamos' },
-          { id: 'balance-prestamos', label: '📊 Balance' }
+          { id: 'balance-prestamos', label: '📊 Balance Préstamos' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -735,7 +748,7 @@ export default function GestionDatos() {
                                 {[...p.api_abono_prestamo].reverse().map(a => (
                                   <p key={a.id} className="flex justify-between">
                                     <span><span className="font-bold">{a.fecha_abono}:</span> ${a.monto_abono.toLocaleString()}</span>
-                                    <span className="text-[#6B5D45]">({a.quien_descunto})</span>
+                                    <span className="text-[#6B5D45]">({a.quien_desconto})</span>
                                   </p>
                                 ))}
                               </div>
@@ -781,8 +794,8 @@ export default function GestionDatos() {
                           <div>
                             <label className="text-sm font-bold text-[#1F3D2B]">¿Quién Descuenta?</label>
                             <select
-                              value={newAbono.quien_descunto}
-                              onChange={(e) => setNewAbono({ ...newAbono, quien_descunto: e.target.value })}
+                              value={newAbono.quien_desconto}
+                              onChange={(e) => setNewAbono({ ...newAbono, quien_desconto: e.target.value })}
                               className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
                             >
                               <option value="Ganaderia OL">Ganaderia OL</option>
@@ -828,15 +841,18 @@ export default function GestionDatos() {
       {/* ==================== BALANCE PRÉSTAMOS ==================== */}
       {activeTab === 'balance-prestamos' && (
         <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📊 Balance de Préstamos</h3>
-          
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📊 Balance Préstamos</h3>
+
           {balancePrestamos && (
             <div className="space-y-6">
               {/* Ganaderia OL */}
               <div className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
                 <h4 className="font-bold text-[#1F3D2B] mb-3">🔴 Ganaderia OL</h4>
-                <p className="text-2xl font-bold text-red-600 mb-3">Total por cobrar: ${balancePrestamos.ganaderia_ol.toLocaleString()}</p>
-                
+                <div className="flex gap-4 mb-3">
+                  <p className="text-2xl font-bold text-red-600">Por cobrar: ${balancePrestamos.ganaderia_ol.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-blue-600">Abonado: ${balancePrestamos.abonado_ganaderia_ol.toLocaleString()}</p>
+                </div>
+
                 <div className="space-y-2">
                   {balancePrestamos.detalles.ganaderia_ol.map(p => (
                     <div key={p.id} className="p-2 bg-white rounded border border-[#D8D2BE] text-sm">
@@ -846,7 +862,7 @@ export default function GestionDatos() {
                           ${p.saldo_pendiente.toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | {p.estado}</p>
+                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | Abonado: ${(p.monto_prestado - p.saldo_pendiente).toLocaleString()} | {p.estado}</p>
                     </div>
                   ))}
                 </div>
@@ -855,8 +871,11 @@ export default function GestionDatos() {
               {/* Santiago */}
               <div className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
                 <h4 className="font-bold text-[#1F3D2B] mb-3">🟠 Santiago</h4>
-                <p className="text-2xl font-bold text-orange-600 mb-3">Total por cobrar: ${balancePrestamos.santiago.toLocaleString()}</p>
-                
+                <div className="flex gap-4 mb-3">
+                  <p className="text-2xl font-bold text-orange-600">Por cobrar: ${balancePrestamos.santiago.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-blue-600">Abonado: ${balancePrestamos.abonado_santiago.toLocaleString()}</p>
+                </div>
+
                 <div className="space-y-2">
                   {balancePrestamos.detalles.santiago.map(p => (
                     <div key={p.id} className="p-2 bg-white rounded border border-[#D8D2BE] text-sm">
@@ -866,7 +885,7 @@ export default function GestionDatos() {
                           ${p.saldo_pendiente.toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | {p.estado}</p>
+                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | Abonado: ${(p.monto_prestado - p.saldo_pendiente).toLocaleString()} | {p.estado}</p>
                     </div>
                   ))}
                 </div>
@@ -878,7 +897,10 @@ export default function GestionDatos() {
                 <p className="text-3xl font-bold text-yellow-300">
                   ${(balancePrestamos.ganaderia_ol + balancePrestamos.santiago).toLocaleString()}
                 </p>
-                <p className="text-white text-sm">POR COBRAR</p>
+                <p className="text-white text-sm mb-2">POR COBRAR</p>
+                <p className="text-lg font-bold text-blue-300">
+                  ${(balancePrestamos.abonado_ganaderia_ol + balancePrestamos.abonado_santiago).toLocaleString()} abonado en total
+                </p>
               </div>
             </div>
           )}

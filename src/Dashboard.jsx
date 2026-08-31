@@ -44,7 +44,7 @@ export default function Dashboard() {
   const fetchActividades = async () => {
     const { data } = await supabase
       .from('api_actividad')
-      .select('*, api_tipoactividad(nombre)')
+      .select('*, api_tipoactividad(nombre), api_finca(nombre)')
       .eq('user_id', user)
       .order('fecha', { ascending: false })
       .limit(15)
@@ -132,6 +132,7 @@ export default function Dashboard() {
               <thead>
                 <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
                   <th className="p-3 text-left font-bold">Fecha</th>
+                  <th className="p-3 text-left font-bold">Finca</th>
                   <th className="p-3 text-left font-bold">Tipo</th>
                   <th className="p-3 text-center font-bold">Costo</th>
                   <th className="p-3 text-left font-bold">Responsable</th>
@@ -141,6 +142,7 @@ export default function Dashboard() {
                 {actividades.map(act => (
                   <tr key={act.id} className="border-b border-[#D8D2BE]">
                     <td className="p-3">{act.fecha}</td>
+                    <td className="p-3">{act.api_finca?.nombre || '—'}</td>
                     <td className="p-3">{act.api_tipoactividad?.nombre || 'N/A'}</td>
                     <td className="p-3 text-center font-bold">${parseFloat(act.costo_total || 0).toLocaleString()}</td>
                     <td className="p-3">{act.responsable}</td>

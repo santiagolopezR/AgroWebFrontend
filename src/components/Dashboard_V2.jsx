@@ -17,6 +17,14 @@ const TILE_ATTRIBUTION = '&copy; OpenStreetMap contributors'
 const COLOR_VERDE = '#4CAF6D'
 const COLOR_AMARILLO = '#FDD835'
 const COLOR_GRIS = '#8FA396'
+const COLOR_ROJO = '#E5534B'
+
+// Filtros de estado por tipo de actividad: qué texto del nombre del tipo de
+// actividad identifica cada uno, y desde cuándo se considera "al día" (mes calendario actual)
+const FILTROS_ACTIVIDAD = {
+  fumigacion: { label: '💨 Fumigación', patron: /fumig/i },
+  abono: { label: '🌱 Abono / Fertilización', patron: /abon|fertiliz/i },
+}
 
 // ==================== CARGA DIFERIDA DE LEAFLET (sin tocar package.json) ====================
 let leafletPromise = null
@@ -141,11 +149,15 @@ export default function Dashboard_V2() {
   const [fincas, setFincas] = useState([])
   const [fincaId, setFincaId] = useState('')
 
+  const [tiposActividad, setTiposActividad] = useState([])
+
   const [lotesGeo, setLotesGeo] = useState([])
   const [totalActividades6m, setTotalActividades6m] = useState(0)
   const [actividadesPorMes, setActividadesPorMes] = useState([])
 
   const [selectedLote, setSelectedLote] = useState(null)
+  const [filtroActividad, setFiltroActividad] = useState(null)
+  const [mapExpandido, setMapExpandido] = useState(false)
 
   const [dataError, setDataError] = useState('')
   const [mapError, setMapError] = useState('')
@@ -189,6 +201,20 @@ export default function Dashboard_V2() {
     fetchFincas()
   }, [user])
 
+  // ---------- Tipos de actividad (catálogo compartido, para los filtros) ----------
+  useEffect(() => {
+    const fetchTipos = async () => {
+      try {
+        const { data, error } = await supabase.from('api_tipoactividad').select('id, nombre')
+        if (error) throw error
+        setTiposActividad(data || [])
+      } catch {
+        console.error('No se pudieron cargar los tipos de actividad')
+      }
+    }
+    fetchTipos()
+  }, [])
+
   // ---------- Lotes + geometría + actividades por finca ----------
   useEffect(() => {
     if (!user || !fincaId) return
@@ -201,25 +227,46 @@ export default function Dashboard_V2() {
       setSelectedLote(null)
 
       try {
+        const fincaIdNum = parseInt(fincaId, 10)
+
         const [{ data: lotesData, error: lotesErr }, { data: relData, error: relErr }] = await Promise.all([
-          supabase.from('api_lote').select('*').eq('finca_id', parseInt(fincaId, 10)),
+          supabase.from('api_lote').select('*').eq('finca_id', fincaIdNum),
           supabase
             .from('api_actividad_lote')
-            .select('lote_id, api_actividad(fecha)')
-            .eq('user_id', user),
+            .select('lote_id, api_actividad(id, fecha, tipo_id, finca_id)'),
         ])
 
         if (lotesErr) throw lotesErr
         if (relErr) throw relErr
 
+        // Solo las vinculaciones que corresponden a esta finca
+        const relFinca = (relData || []).filter((rel) => rel.api_actividad?.finca_id === fincaIdNum)
+
         // Última fecha de actividad conocida por lote (para estimar estado si falta el campo)
         const ultimaActividadPorLote = {}
-        for (const rel of relData || []) {
+        for (const rel of relFinca) {
           const fecha = rel.api_actividad?.fecha
           if (!fecha) continue
           const actual = ultimaActividadPorLote[rel.lote_id]
           if (!actual || fecha > actual) ultimaActividadPorLote[rel.lote_id] = fecha
         }
+
+        // Actividades por lote (para el panel de detalle y los filtros de fumigación/abono)
+        const actividadesPorLote = {}
+        for (const rel of relFinca) {
+          const act = rel.api_actividad
+          if (!act) continue
+          if (!actividadesPorLote[rel.lote_id]) actividadesPorLote[rel.lote_id] = []
+          actividadesPorLote[rel.lote_id].push(act)
+        }
+
+        const tipoNombrePorId = {}
+        for (const t of tiposActividad) tipoNombrePorId[t.id] = t.nombre
+
+        const ahora = new Date()
+        const inicioMes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-01`
+        const idsFumigacion = tiposActividad.filter((t) => FILTROS_ACTIVIDAD.fumigacion.patron.test(t.nombre)).map((t) => t.id)
+        const idsAbono = tiposActividad.filter((t) => FILTROS_ACTIVIDAD.abono.patron.test(t.nombre)).map((t) => t.id)
 
         // Enriquecimiento opcional de geometría desde el backend REST (no bloqueante)
         const geoApi = await obtenerGeometriaDesdeApi(fincaId)
@@ -236,11 +283,24 @@ export default function Dashboard_V2() {
           const punto = poligono ? null : extraerPunto(fuenteGeo) || extraerPunto(lote)
           const estado = lote.estado || fuenteGeo.estado || estimarEstadoPorActividad(ultimaActividadPorLote[lote.id])
 
+          const actividadesLote = (actividadesPorLote[lote.id] || [])
+            .slice()
+            .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+
+          const fumigadoEsteMes = actividadesLote.some((a) => idsFumigacion.includes(a.tipo_id) && a.fecha >= inicioMes)
+          const abonadoEsteMes = actividadesLote.some((a) => idsAbono.includes(a.tipo_id) && a.fecha >= inicioMes)
+
           return {
             ...lote,
             estado,
             poligono,
             punto,
+            fumigadoEsteMes,
+            abonadoEsteMes,
+            actividadesRecientes: actividadesLote.slice(0, 5).map((a) => ({
+              ...a,
+              tipoNombre: tipoNombrePorId[a.tipo_id] || 'Actividad',
+            })),
           }
         })
 
@@ -297,7 +357,7 @@ export default function Dashboard_V2() {
     return () => {
       cancelado = true
     }
-  }, [user, fincaId])
+  }, [user, fincaId, tiposActividad])
 
   // ---------- Carga de Leaflet ----------
   useEffect(() => {
@@ -350,7 +410,10 @@ export default function Dashboard_V2() {
       const bounds = []
 
       for (const lote of conGeo) {
-        const color = colorPorEstado(lote.estado)
+        let color
+        if (filtroActividad === 'fumigacion') color = lote.fumigadoEsteMes ? COLOR_VERDE : COLOR_ROJO
+        else if (filtroActividad === 'abono') color = lote.abonadoEsteMes ? COLOR_VERDE : COLOR_ROJO
+        else color = colorPorEstado(lote.estado)
         let layer
 
         if (lote.poligono) {
@@ -374,7 +437,14 @@ export default function Dashboard_V2() {
     } catch {
       setMapError('Mapa no disponible')
     }
-  }, [lotesGeo, handleSelectLote, leafletReady])
+  }, [lotesGeo, handleSelectLote, leafletReady, filtroActividad])
+
+  // Recalcular el tamaño del mapa de Leaflet cuando se expande/contrae el contenedor
+  useEffect(() => {
+    if (!mapInstanceRef.current) return
+    const id = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 260)
+    return () => clearTimeout(id)
+  }, [mapExpandido])
 
   // Limpieza del mapa al desmontar el componente
   useEffect(() => {
@@ -396,7 +466,7 @@ export default function Dashboard_V2() {
       <style>{cssBase}</style>
 
       <div style={styles.headerRow}>
-        <h2 style={styles.h2}>🌍 Dashboard V2.0</h2>
+        <h2 style={styles.h2}>🗺️ Visualización Mapa</h2>
 
         <div style={styles.selectorFinca}>
           <label style={styles.label}>Finca</label>
@@ -433,18 +503,42 @@ export default function Dashboard_V2() {
       </div>
 
       {/* MAPA + PANEL DETALLE */}
-      <div style={styles.mapRow}>
+      <div style={mapExpandido ? styles.mapRowExpandido : styles.mapRow}>
         <div style={styles.mapCard}>
           <div style={styles.mapHeader}>
             <h3 style={styles.h3}>🗺️ Mapa de Lotes</h3>
+            <button type="button" onClick={() => setMapExpandido((v) => !v)} style={styles.botonExpandir}>
+              {mapExpandido ? '⤡ Contraer mapa' : '⤢ Expandir mapa'}
+            </button>
+          </div>
+
+          <div style={styles.filtrosRow}>
+            {Object.entries(FILTROS_ACTIVIDAD).map(([key, cfg]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFiltroActividad((f) => (f === key ? null : key))}
+                style={filtroActividad === key ? styles.filtroPillActivo : styles.filtroPill}
+              >
+                {cfg.label}
+              </button>
+            ))}
+          </div>
+
+          {filtroActividad ? (
+            <div style={styles.leyenda}>
+              <span style={{ ...styles.leyendaDot, background: COLOR_VERDE }} /> Al día este mes
+              <span style={{ ...styles.leyendaDot, background: COLOR_ROJO, marginLeft: 12 }} /> Pendiente
+            </div>
+          ) : (
             <div style={styles.leyenda}>
               <span style={{ ...styles.leyendaDot, background: COLOR_VERDE }} /> Activo
               <span style={{ ...styles.leyendaDot, background: COLOR_AMARILLO, marginLeft: 12 }} /> En proceso
               <span style={{ ...styles.leyendaDot, background: COLOR_GRIS, marginLeft: 12 }} /> Sin datos
             </div>
-          </div>
+          )}
 
-          <div style={styles.mapWrapper}>
+          <div style={mapExpandido ? styles.mapWrapperExpandido : styles.mapWrapper}>
             <div ref={mapContainerRef} className="dv2-map" style={styles.mapContainer} />
             {mapError && (
               <div style={styles.mapOverlay}>
@@ -479,6 +573,32 @@ export default function Dashboard_V2() {
                   {selectedLote.estado || 'sin datos'}
                 </span>
               </div>
+              <div style={styles.detailFila}>
+                <span style={styles.detailKey}>Fumigación (mes)</span>
+                <span style={{ ...styles.badge, background: selectedLote.fumigadoEsteMes ? COLOR_VERDE : COLOR_ROJO }}>
+                  {selectedLote.fumigadoEsteMes ? 'Al día' : 'Pendiente'}
+                </span>
+              </div>
+              <div style={styles.detailFila}>
+                <span style={styles.detailKey}>Abono/Fert. (mes)</span>
+                <span style={{ ...styles.badge, background: selectedLote.abonadoEsteMes ? COLOR_VERDE : COLOR_ROJO }}>
+                  {selectedLote.abonadoEsteMes ? 'Al día' : 'Pendiente'}
+                </span>
+              </div>
+
+              <p style={{ ...styles.detailKey, marginTop: 16, marginBottom: 8 }}>Actividades recientes</p>
+              {selectedLote.actividadesRecientes?.length > 0 ? (
+                <div>
+                  {selectedLote.actividadesRecientes.map((a) => (
+                    <div key={a.id} style={styles.actividadFila}>
+                      <span>{a.tipoNombre}</span>
+                      <span style={styles.mutedText}>{a.fecha}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={styles.mutedText}>Sin actividades registradas en este lote.</p>
+              )}
             </div>
           )}
         </div>
@@ -550,11 +670,17 @@ const styles = {
   cardLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, margin: 0 },
   cardValue: { fontSize: 30, fontWeight: 700, color: TEXT, margin: '4px 0 0' },
   mapRow: { display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(240px, 1fr)', gap: 16, marginBottom: 24 },
+  mapRowExpandido: { display: 'grid', gridTemplateColumns: '1fr', gap: 16, marginBottom: 24 },
   mapCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
   mapHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  leyenda: { fontSize: 12, color: TEXT_MUTED, display: 'flex', alignItems: 'center' },
+  botonExpandir: { padding: '6px 12px', background: BORDER, color: TEXT, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  filtrosRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 },
+  filtroPill: { padding: '6px 14px', background: BORDER, color: TEXT, border: 'none', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  filtroPillActivo: { padding: '6px 14px', background: ACCENT, color: '#0F1712', border: 'none', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer' },
+  leyenda: { fontSize: 12, color: TEXT_MUTED, display: 'flex', alignItems: 'center', marginBottom: 12 },
   leyendaDot: { display: 'inline-block', width: 10, height: 10, borderRadius: '50%', marginRight: 4 },
   mapWrapper: { position: 'relative', width: '100%', height: 420, borderRadius: 8, overflow: 'hidden', border: `1px solid ${BORDER}` },
+  mapWrapperExpandido: { position: 'relative', width: '100%', height: 640, borderRadius: 8, overflow: 'hidden', border: `1px solid ${BORDER}` },
   mapContainer: { width: '100%', height: '100%', background: BG },
   mapOverlay: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,18,0.92)', color: TEXT_MUTED, fontWeight: 600, textAlign: 'center', padding: 16 },
   detailCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
@@ -564,6 +690,7 @@ const styles = {
   detailKey: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600 },
   detailVal: { fontSize: 13, color: TEXT, fontWeight: 700 },
   badge: { color: '#0F1712', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize' },
+  actividadFila: { display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '6px 0', borderBottom: `1px solid ${BORDER}` },
   chartCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
   chartSvg: { width: '100%', height: 180, marginTop: 8 },
 }
