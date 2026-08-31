@@ -727,16 +727,16 @@ export default function RegistroActividad() {
 }
 
 const pickerStyles = {
-  wrapper: { border: '2px solid #D8D2BE', borderRadius: 8, background: '#fff', overflow: 'hidden' },
-  toolbar: { display: 'flex', gap: 8, padding: 10, borderBottom: '2px solid #D8D2BE', background: '#F5F2E6', flexWrap: 'wrap' },
-  buscador: { flex: 1, minWidth: 160, padding: '8px 10px', border: '2px solid #D8D2BE', borderRadius: 6, fontSize: 13 },
-  botonChico: { padding: '8px 12px', background: '#1F3D2B', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
-  botonChicoSecundario: { padding: '8px 12px', background: '#D8D2BE', color: '#1F3D2B', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  wrapper: { border: '2px solid #2A3D31', borderRadius: 8, background: '#16241C', overflow: 'hidden' },
+  toolbar: { display: 'flex', gap: 8, padding: 10, borderBottom: '2px solid #2A3D31', background: '#1E2F24', flexWrap: 'wrap' },
+  buscador: { flex: 1, minWidth: 160, padding: '8px 10px', border: '2px solid #2A3D31', borderRadius: 6, fontSize: 13, background: '#16241C', color: '#EAF3EC' },
+  botonChico: { padding: '8px 12px', background: '#234433', color: '#EAF3EC', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  botonChicoSecundario: { padding: '8px 12px', background: '#2A3D31', color: '#EAF3EC', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
   lista: { maxHeight: 260, overflowY: 'auto' },
-  fila: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #F0EDE0' },
-  filaSeleccionada: { background: '#E8F5E9' },
-  checkbox: { width: 16, height: 16, accentColor: '#1F3D2B', cursor: 'pointer', flexShrink: 0 },
-  filaNombre: { flex: 1, fontSize: 13, color: '#1F3D2B', fontWeight: 600 },
-  filaHa: { fontSize: 12, color: '#6B5D45', fontWeight: 600 },
-  vacio: { padding: 16, textAlign: 'center', color: '#6B5D45', fontSize: 13 },
+  fila: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #1E2F24' },
+  filaSeleccionada: { background: '#1B3226' },
+  checkbox: { width: 16, height: 16, accentColor: '#6FCF97', cursor: 'pointer', flexShrink: 0 },
+  filaNombre: { flex: 1, fontSize: 13, color: '#EAF3EC', fontWeight: 600 },
+  filaHa: { fontSize: 12, color: '#9FB3A6', fontWeight: 600 },
+  vacio: { padding: 16, textAlign: 'center', color: '#9FB3A6', fontSize: 13 },
 }

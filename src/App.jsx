@@ -55,7 +55,7 @@ export default function App() {
             onClick={() => setCurrentPage('dashboard')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'dashboard'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
@@ -66,7 +66,7 @@ export default function App() {
             onClick={() => setCurrentPage('dashboard-v2')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'dashboard-v2'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
@@ -77,7 +77,7 @@ export default function App() {
             onClick={() => setCurrentPage('gestiondatos')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'gestiondatos'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
@@ -88,7 +88,7 @@ export default function App() {
             onClick={() => setCurrentPage('zafras')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'zafras'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
@@ -99,7 +99,7 @@ export default function App() {
             onClick={() => setCurrentPage('registro')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'registro'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
@@ -110,7 +110,7 @@ export default function App() {
             onClick={() => setCurrentPage('gasto')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'gasto'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
@@ -121,7 +121,7 @@ export default function App() {
             onClick={() => setCurrentPage('editargasto')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'editargasto'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
@@ -132,7 +132,7 @@ export default function App() {
             onClick={() => setCurrentPage('importar')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'importar'
-                ? 'bg-white text-[#1F3D2B]'
+                ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
