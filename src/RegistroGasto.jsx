@@ -305,7 +305,7 @@ export default function RegistroGasto() {
 
         const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
           finca_id: finca.id,
-          factura_numero: facturaNro || null,
+          factura_numero: facturaNro || `S/N-${Date.now()}`,
           proveedor_id: proveedorId,
           fecha: fechaRow,
           iva_porcentaje: ivaItem,
@@ -385,7 +385,7 @@ export default function RegistroGasto() {
 
     const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
       finca_id: parseInt(fincaId),
-      factura_numero: factura || null,
+      factura_numero: factura || `S/N-${Date.now()}`,
       proveedor_id: proveedorId ? parseInt(proveedorId) : null,
       fecha: fecha,
       iva_porcentaje: ivaGlobal,
