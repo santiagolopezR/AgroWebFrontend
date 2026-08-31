@@ -335,6 +335,8 @@ export default function Dashboard_V2() {
           const fumigadoEsteMes = actividadesLote.some((a) => idsFumigacion.includes(a.tipo_id) && a.fecha >= inicioMes)
           const abonadoEsteMes = actividadesLote.some((a) => idsAbono.includes(a.tipo_id) && a.fecha >= inicioMes)
 
+          const areaLote = lote.area_hectareas ?? lote.superficie ?? null
+
           return {
             ...lote,
             estado,
@@ -342,11 +344,18 @@ export default function Dashboard_V2() {
             punto,
             fumigadoEsteMes,
             abonadoEsteMes,
-            actividadesRecientes: actividadesLote.slice(0, 5).map((a) => ({
-              ...a,
-              tipoNombre: tipoNombrePorId[a.tipo_id] || 'Actividad',
-              productos: productosPorActividad[a.id] || [],
-            })),
+            actividadesRecientes: actividadesLote.slice(0, 5).map((a) => {
+              const numLotes = (lotesPorActividad[a.id] || []).length || 1
+              const productos = (productosPorActividad[a.id] || []).map((p) => {
+                const compartido = numLotes > 1
+                const cantidadEsteLote =
+                  compartido && p.dosisPorHa != null && areaLote != null
+                    ? Number((p.dosisPorHa * areaLote).toFixed(2))
+                    : null
+                return { ...p, compartido, numLotes, cantidadEsteLote }
+              })
+              return { ...a, tipoNombre: tipoNombrePorId[a.tipo_id] || 'Actividad', productos }
+            }),
           }
         })
 
@@ -645,7 +654,14 @@ export default function Dashboard_V2() {
                         <div style={styles.productosLista}>
                           {a.productos.map((p, i) => (
                             <div key={i} style={styles.productoFila}>
-                              {p.nombre} — {p.cantidad ?? '—'}{p.unidad} ({p.dosisPorHa ?? '—'}/ha)
+                              {p.nombre} — {p.dosisPorHa ?? '—'} {p.unidad}/ha
+                              {p.compartido ? (
+                                <span style={styles.productoNota}>
+                                  {' '}(≈ {p.cantidadEsteLote ?? '—'}{p.unidad} en este lote, de {p.cantidad}{p.unidad} repartidos en {p.numLotes} lotes)
+                                </span>
+                              ) : (
+                                <span style={styles.productoNota}> · {p.cantidad}{p.unidad} aplicados</span>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -792,6 +808,7 @@ const styles = {
   actividadBloque: { padding: '8px 0', borderBottom: `1px solid ${BORDER}` },
   productosLista: { marginTop: 4, paddingLeft: 10 },
   productoFila: { fontSize: 11, color: TEXT_MUTED, padding: '2px 0' },
+  productoNota: { color: TEXT_MUTED, opacity: 0.85 },
   productoFilaVacio: { fontSize: 11, color: TEXT_MUTED, marginTop: 4, paddingLeft: 10, fontStyle: 'italic' },
   tablaWrapper: { overflowX: 'auto', marginTop: 8 },
   tabla: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
