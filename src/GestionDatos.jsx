@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import { parseGeorreferencia, esErrorColumnaInexistente, GEO_FORMATO_AYUDA } from './lib/geoLote'
 
 export default function GestionDatos() {
   const [user, setUser] = useState(null)
@@ -11,7 +12,7 @@ export default function GestionDatos() {
   
   // LOTES
   const [lotes, setLotes] = useState([])
-  const [newLote, setNewLote] = useState({ nombre: '', finca_id: '', area_hectareas: '' })
+  const [newLote, setNewLote] = useState({ nombre: '', finca_id: '', area_hectareas: '', georreferenciacion: '' })
   const [lotesFincaId, setLotesFincaId] = useState('')
   
   // CULTIVOS
@@ -96,13 +97,41 @@ export default function GestionDatos() {
 
   const createLote = async () => {
     if (!newLote.nombre || !lotesFincaId || !newLote.area_hectareas) return
-    await supabase.from('api_lote').insert([{
+
+    const geo = parseGeorreferencia(newLote.georreferenciacion)
+    if (geo?.error) {
+      alert('Formato de georreferenciación inválido. ' + GEO_FORMATO_AYUDA)
+      return
+    }
+
+    const payload = {
       nombre: newLote.nombre,
       finca_id: parseInt(lotesFincaId),
       area_hectareas: parseFloat(newLote.area_hectareas),
-      user_id: user
-    }])
-    setNewLote({ nombre: '', finca_id: '', area_hectareas: '' })
+      user_id: user,
+      ...(geo && !geo.error ? geo : {})
+    }
+
+    let { error } = await supabase.from('api_lote').insert([payload])
+    let geoDescartada = false
+
+    if (error && esErrorColumnaInexistente(error)) {
+      const { latitud: _lat, longitud: _lng, poligono: _pol, ...sinGeo } = payload
+      const reintento = await supabase.from('api_lote').insert([sinGeo])
+      error = reintento.error
+      geoDescartada = true
+    }
+
+    if (error) {
+      alert('No se pudo crear el lote: ' + error.message)
+      return
+    }
+
+    if (geoDescartada && geo) {
+      alert('Lote creado, pero la georreferenciación no se guardó: falta la columna en la base de datos')
+    }
+
+    setNewLote({ nombre: '', finca_id: '', area_hectareas: '', georreferenciacion: '' })
     fetchLotes(lotesFincaId)
   }
 
@@ -378,6 +407,14 @@ export default function GestionDatos() {
                   placeholder="Área (hectáreas)"
                   className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
                 />
+                <input
+                  type="text"
+                  value={newLote.georreferenciacion}
+                  onChange={(e) => setNewLote({ ...newLote, georreferenciacion: e.target.value })}
+                  placeholder="Georreferenciación (opcional): lat,lng o lat1,lng1;lat2,lng2;lat3,lng3"
+                  className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm"
+                />
+                <p className="text-xs text-[#6B5D45]">{GEO_FORMATO_AYUDA}</p>
                 <button onClick={createLote} className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold">➕ Agregar Lote</button>
               </div>
 
@@ -386,7 +423,10 @@ export default function GestionDatos() {
                   <div key={l.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
                     <div>
                       <p className="font-bold">{l.nombre}</p>
-                      <p className="text-xs text-[#6B5D45]">{l.area_hectareas} ha</p>
+                      <p className="text-xs text-[#6B5D45]">
+                        {l.area_hectareas} ha
+                        {(l.poligono || (l.latitud !== undefined && l.latitud !== null)) && ' · 📍 Georreferenciado'}
+                      </p>
                     </div>
                     <button onClick={() => deleteLote(l.id)} className="text-red-600 font-bold">🗑️</button>
                   </div>

@@ -8,9 +8,15 @@ const API_BASE = (import.meta.env.VITE_API_URL || 'https://agroweb-vv4b.onrender
 const LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
 const LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
 
-const COLOR_VERDE = '#2E7D32'
-const COLOR_AMARILLO = '#F9A825'
-const COLOR_GRIS = '#9E9E9E'
+// Tiles estándar de OpenStreetMap (gratuitas, sin API key). El look oscuro se logra
+// invirtiendo/oscureciendo solo la capa base con CSS (ver .dv2-map en cssBase), así los
+// polígonos y marcadores de los lotes mantienen sus colores reales.
+const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const TILE_ATTRIBUTION = '&copy; OpenStreetMap contributors'
+
+const COLOR_VERDE = '#4CAF6D'
+const COLOR_AMARILLO = '#FDD835'
+const COLOR_GRIS = '#8FA396'
 
 // ==================== CARGA DIFERIDA DE LEAFLET (sin tocar package.json) ====================
 let leafletPromise = null
@@ -323,8 +329,8 @@ export default function Dashboard_V2() {
     try {
       if (!mapInstanceRef.current) {
         mapInstanceRef.current = L.map(mapContainerRef.current).setView([-34.6, -58.4], 5)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
+        L.tileLayer(TILE_URL, {
+          attribution: TILE_ATTRIBUTION,
           maxZoom: 19,
         }).addTo(mapInstanceRef.current)
         layerGroupRef.current = L.layerGroup().addTo(mapInstanceRef.current)
@@ -439,7 +445,7 @@ export default function Dashboard_V2() {
           </div>
 
           <div style={styles.mapWrapper}>
-            <div ref={mapContainerRef} style={styles.mapContainer} />
+            <div ref={mapContainerRef} className="dv2-map" style={styles.mapContainer} />
             {mapError && (
               <div style={styles.mapOverlay}>
                 <p>🗺️ {mapError}</p>
@@ -495,11 +501,11 @@ export default function Dashboard_V2() {
               const y = 120 - h
               return (
                 <g key={b.key}>
-                  <rect x={x} y={y} width={barW} height={h} fill="#1F3D2B" rx={3} />
-                  <text x={x + barW / 2} y={y - 6} textAnchor="middle" fontSize="11" fill="#1F3D2B" fontWeight="bold">
+                  <rect x={x} y={y} width={barW} height={h} fill={COLOR_VERDE} rx={3} />
+                  <text x={x + barW / 2} y={y - 6} textAnchor="middle" fontSize="11" fill="#EAF3EC" fontWeight="bold">
                     {b.total}
                   </text>
-                  <text x={x + barW / 2} y={138} textAnchor="middle" fontSize="11" fill="#6B5D45">
+                  <text x={x + barW / 2} y={138} textAnchor="middle" fontSize="11" fill="#9FB3A6">
                     {b.label}
                   </text>
                 </g>
@@ -514,36 +520,50 @@ export default function Dashboard_V2() {
 
 const cssBase = `
   .dv2-leaflet-loading { display:flex; }
+  .leaflet-control-attribution { background: rgba(18,32,26,0.75) !important; color: #9FB3A6 !important; }
+  .leaflet-control-attribution a { color: #C7D8CC !important; }
+  .leaflet-control-zoom a { background: #1A2B22 !important; color: #EAF3EC !important; border-color: #2A3D31 !important; }
+  .leaflet-control-zoom a:hover { background: #22362A !important; }
+  .leaflet-tooltip { background: #1A2B22 !important; color: #EAF3EC !important; border: 1px solid #2A3D31 !important; }
+  .dv2-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
 `
 
+// Paleta dark
+const BG = '#0F1712'
+const SURFACE = '#16241C'
+const BORDER = '#2A3D31'
+const TEXT = '#EAF3EC'
+const TEXT_MUTED = '#9FB3A6'
+const ACCENT = '#6FCF97'
+
 const styles = {
-  page: { padding: 32, maxWidth: '100%', fontFamily: 'system-ui, sans-serif' },
+  page: { padding: 32, maxWidth: '100%', fontFamily: 'system-ui, sans-serif', background: BG, minHeight: '100%', color: TEXT },
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16, marginBottom: 24 },
-  h2: { fontSize: 28, fontWeight: 700, color: '#1F3D2B', margin: 0 },
-  h3: { fontSize: 18, fontWeight: 700, color: '#1F3D2B', margin: 0 },
+  h2: { fontSize: 28, fontWeight: 700, color: ACCENT, margin: 0 },
+  h3: { fontSize: 18, fontWeight: 700, color: ACCENT, margin: 0 },
   selectorFinca: { display: 'flex', flexDirection: 'column', gap: 4, minWidth: 220 },
-  label: { fontSize: 12, fontWeight: 700, color: '#1F3D2B' },
-  select: { padding: '8px 10px', border: '2px solid #D8D2BE', borderRadius: 6, fontSize: 14, background: '#fff' },
-  alertaAmarilla: { background: '#FFF8E1', border: '2px solid #F9A825', color: '#7A5B00', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 14, fontWeight: 600 },
+  label: { fontSize: 12, fontWeight: 700, color: TEXT_MUTED },
+  select: { padding: '8px 10px', border: `2px solid ${BORDER}`, borderRadius: 6, fontSize: 14, background: SURFACE, color: TEXT },
+  alertaAmarilla: { background: '#332B0A', border: '2px solid #FDD835', color: '#FDD835', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 14, fontWeight: 600 },
   cardsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 },
-  card: { background: '#fff', border: '2px solid #D8D2BE', borderRadius: 10, padding: 18 },
-  cardLabel: { fontSize: 13, fontWeight: 700, color: '#6B5D45', margin: 0 },
-  cardValue: { fontSize: 30, fontWeight: 700, color: '#1F3D2B', margin: '4px 0 0' },
+  card: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
+  cardLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, margin: 0 },
+  cardValue: { fontSize: 30, fontWeight: 700, color: TEXT, margin: '4px 0 0' },
   mapRow: { display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(240px, 1fr)', gap: 16, marginBottom: 24 },
-  mapCard: { background: '#fff', border: '2px solid #D8D2BE', borderRadius: 10, padding: 18 },
+  mapCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
   mapHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  leyenda: { fontSize: 12, color: '#6B5D45', display: 'flex', alignItems: 'center' },
+  leyenda: { fontSize: 12, color: TEXT_MUTED, display: 'flex', alignItems: 'center' },
   leyendaDot: { display: 'inline-block', width: 10, height: 10, borderRadius: '50%', marginRight: 4 },
-  mapWrapper: { position: 'relative', width: '100%', height: 420, borderRadius: 8, overflow: 'hidden', border: '1px solid #D8D2BE' },
-  mapContainer: { width: '100%', height: '100%' },
-  mapOverlay: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(245,242,230,0.9)', color: '#6B5D45', fontWeight: 600, textAlign: 'center', padding: 16 },
-  detailCard: { background: '#fff', border: '2px solid #D8D2BE', borderRadius: 10, padding: 18 },
-  mutedText: { color: '#6B5D45', fontSize: 14 },
-  detailNombre: { fontSize: 18, fontWeight: 700, color: '#1F3D2B', margin: '0 0 12px' },
-  detailFila: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F0EDE0' },
-  detailKey: { fontSize: 13, color: '#6B5D45', fontWeight: 600 },
-  detailVal: { fontSize: 13, color: '#1F3D2B', fontWeight: 700 },
-  badge: { color: '#fff', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize' },
-  chartCard: { background: '#fff', border: '2px solid #D8D2BE', borderRadius: 10, padding: 18 },
+  mapWrapper: { position: 'relative', width: '100%', height: 420, borderRadius: 8, overflow: 'hidden', border: `1px solid ${BORDER}` },
+  mapContainer: { width: '100%', height: '100%', background: BG },
+  mapOverlay: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,18,0.92)', color: TEXT_MUTED, fontWeight: 600, textAlign: 'center', padding: 16 },
+  detailCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
+  mutedText: { color: TEXT_MUTED, fontSize: 14 },
+  detailNombre: { fontSize: 18, fontWeight: 700, color: TEXT, margin: '0 0 12px' },
+  detailFila: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` },
+  detailKey: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600 },
+  detailVal: { fontSize: 13, color: TEXT, fontWeight: 700 },
+  badge: { color: '#0F1712', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize' },
+  chartCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
   chartSvg: { width: '100%', height: 180, marginTop: 8 },
 }

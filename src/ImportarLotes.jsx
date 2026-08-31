@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Upload, Trash2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from './supabaseClient'
+import { parseGeorreferencia, esErrorColumnaInexistente, GEO_FORMATO_AYUDA } from './lib/geoLote'
 
 export default function ImportarLotes() {
   const [archivo, setArchivo] = useState(null)
@@ -52,16 +53,36 @@ export default function ImportarLotes() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
-      const lotesData = datos.map(row => ({
-        finca_id: parseInt(fincaSeleccionada),
-        nombre: row.nombre || row.Nombre || '',
-        superficie: parseFloat(row.superficie || row.Superficie || 0),
-        user_id: user.id,
-      }))
+      const lotesData = datos.map(row => {
+        const base = {
+          finca_id: parseInt(fincaSeleccionada),
+          nombre: row.nombre || row.Nombre || '',
+          superficie: parseFloat(row.superficie || row.Superficie || 0),
+          user_id: user.id,
+        }
 
-      const { error } = await supabase
-        .from('api_lote')
-        .insert(lotesData)
+        const geoTexto = row.poligono || row.Poligono || row.coordenadas || row.Coordenadas ||
+          row.georreferenciacion || row.Georreferenciacion
+        const geo = parseGeorreferencia(geoTexto)
+        if (geo && !geo.error) Object.assign(base, geo)
+
+        return base
+      })
+
+      let { error } = await supabase.from('api_lote').insert(lotesData)
+
+      if (error && esErrorColumnaInexistente(error)) {
+        // La tabla todavía no tiene columnas de georreferenciación: reintenta sin ellas
+        const sinGeo = lotesData.map(({ latitud: _lat, longitud: _lng, poligono: _pol, ...resto }) => resto)
+        const reintento = await supabase.from('api_lote').insert(sinGeo)
+        error = reintento.error
+        if (!error) {
+          alert(`✓ ${lotesData.length} lotes importados (sin georreferenciación: falta la columna en la base de datos)`)
+          setDatos([])
+          setArchivo(null)
+          return
+        }
+      }
 
       if (error) throw error
 
@@ -69,7 +90,8 @@ export default function ImportarLotes() {
       setDatos([])
       setArchivo(null)
     } catch (err) {
-      alert('Error: ' + err.message)
+      console.error('Error al importar lotes')
+      alert('No se pudieron importar los lotes: ' + (err.message || 'error desconocido'))
     } finally {
       setCargando(false)
     }
@@ -114,8 +136,12 @@ export default function ImportarLotes() {
           </label>
         </div>
 
-        <p className="text-sm text-[#6B5D45] mb-4">
-          El archivo debe tener columnas: <strong>Nombre</strong> y <strong>Superficie</strong>
+        <p className="text-sm text-[#6B5D45] mb-2">
+          El archivo debe ser <strong>.xlsx, .xls o .csv</strong> con columnas: <strong>Nombre</strong> y <strong>Superficie</strong>.
+          Opcionalmente, una columna <strong>Poligono</strong> (o Coordenadas) con la georreferenciación del lote.
+        </p>
+        <p className="text-xs text-[#6B5D45] mb-4">
+          Formato de la columna Poligono — {GEO_FORMATO_AYUDA}
         </p>
       </div>
 
@@ -130,15 +156,27 @@ export default function ImportarLotes() {
                 <tr className="bg-[#1F3D2B] text-white">
                   <th className="text-left py-3 px-4 font-bold">Nombre</th>
                   <th className="text-left py-3 px-4 font-bold">Superficie (ha)</th>
+                  <th className="text-left py-3 px-4 font-bold">Georreferenciación</th>
                 </tr>
               </thead>
               <tbody>
-                {datos.map((row, i) => (
-                  <tr key={i} className="border-b border-[#D8D2BE] hover:bg-[#F5F2E6]">
-                    <td className="py-3 px-4">{row.nombre || row.Nombre || ''}</td>
-                    <td className="py-3 px-4">{row.superficie || row.Superficie || ''}</td>
-                  </tr>
-                ))}
+                {datos.map((row, i) => {
+                  const geoTexto = row.poligono || row.Poligono || row.coordenadas || row.Coordenadas ||
+                    row.georreferenciacion || row.Georreferenciacion
+                  const geo = parseGeorreferencia(geoTexto)
+                  let geoLabel = '—'
+                  if (geo?.error) geoLabel = '⚠️ formato inválido'
+                  else if (geo?.poligono) geoLabel = `✓ Polígono (${JSON.parse(geo.poligono).length} puntos)`
+                  else if (geo?.latitud !== undefined) geoLabel = '✓ Punto'
+
+                  return (
+                    <tr key={i} className="border-b border-[#D8D2BE] hover:bg-[#F5F2E6]">
+                      <td className="py-3 px-4">{row.nombre || row.Nombre || ''}</td>
+                      <td className="py-3 px-4">{row.superficie || row.Superficie || ''}</td>
+                      <td className="py-3 px-4">{geoLabel}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
