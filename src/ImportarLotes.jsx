@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Upload, Trash2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from './supabaseClient'
-import { parseGeorreferencia, esErrorColumnaInexistente, GEO_FORMATO_AYUDA } from './lib/geoLote'
+import { georreferenciaDeFila, esErrorColumnaInexistente, GEO_FORMATO_AYUDA, parseKML } from './lib/geoLote'
 
 export default function ImportarLotes() {
   const [archivo, setArchivo] = useState(null)
@@ -17,25 +17,37 @@ export default function ImportarLotes() {
     setFincas(data || [])
   }
 
-  // Leer archivo Excel
-  const leerExcel = (e) => {
+  // Leer archivo (Excel/CSV o KML)
+  const leerArchivo = (e) => {
     const file = e.target.files[0]
     if (!file) return
 
+    const esKML = /\.kml$/i.test(file.name)
     const reader = new FileReader()
+
     reader.onload = (event) => {
       try {
-        const wb = XLSX.read(event.target.result, { type: 'binary' })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const jsonData = XLSX.utils.sheet_to_json(ws)
-        
-        setDatos(jsonData)
+        if (esKML) {
+          const filas = parseKML(event.target.result)
+          if (filas.length === 0) {
+            alert('No se encontraron lotes (Placemarks con nombre y geometría) en el KML')
+            return
+          }
+          setDatos(filas)
+        } else {
+          const wb = XLSX.read(event.target.result, { type: 'binary' })
+          const ws = wb.Sheets[wb.SheetNames[0]]
+          const jsonData = XLSX.utils.sheet_to_json(ws)
+          setDatos(jsonData)
+        }
         setArchivo(file.name)
       } catch (err) {
         alert('Error al leer archivo: ' + err.message)
       }
     }
-    reader.readAsBinaryString(file)
+
+    if (esKML) reader.readAsText(file)
+    else reader.readAsBinaryString(file)
   }
 
   // Importar lotes
@@ -61,9 +73,7 @@ export default function ImportarLotes() {
           user_id: user.id,
         }
 
-        const geoTexto = row.poligono || row.Poligono || row.coordenadas || row.Coordenadas ||
-          row.georreferenciacion || row.Georreferenciacion
-        const geo = parseGeorreferencia(geoTexto)
+        const geo = georreferenciaDeFila(row)
         if (geo && !geo.error) Object.assign(base, geo)
 
         return base
@@ -99,7 +109,7 @@ export default function ImportarLotes() {
 
   return (
     <div className="p-8 max-w-4xl">
-      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">📥 Importar Lotes desde Excel</h2>
+      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">📥 Importar Lotes</h2>
 
       {/* Seleccionar Finca */}
       <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
@@ -119,8 +129,8 @@ export default function ImportarLotes() {
 
       {/* Upload */}
       <div className="bg-white rounded-lg border-4 border-[#1F3D2B] p-8 mb-8">
-        <h3 className="text-xl font-bold text-[#1F3D2B] mb-6">Selecciona archivo Excel</h3>
-        
+        <h3 className="text-xl font-bold text-[#1F3D2B] mb-6">Selecciona archivo (Excel o KML)</h3>
+
         <div className="border-4 border-dashed border-[#1F3D2B] rounded-lg p-8 text-center mb-6 hover:bg-[#F5F2E6]">
           <Upload size={40} className="mx-auto mb-4 text-[#1F3D2B]" />
           <label className="cursor-pointer">
@@ -129,19 +139,23 @@ export default function ImportarLotes() {
             </span>
             <input
               type="file"
-              accept=".xlsx, .xls, .csv"
-              onChange={leerExcel}
+              accept=".xlsx, .xls, .csv, .kml"
+              onChange={leerArchivo}
               className="hidden"
             />
           </label>
         </div>
 
         <p className="text-sm text-[#6B5D45] mb-2">
-          El archivo debe ser <strong>.xlsx, .xls o .csv</strong> con columnas: <strong>Nombre</strong> y <strong>Superficie</strong>.
-          Opcionalmente, una columna <strong>Poligono</strong> (o Coordenadas) con la georreferenciación del lote.
+          <strong>Excel/CSV (.xlsx, .xls, .csv):</strong> columnas <strong>Nombre</strong> y <strong>Superficie</strong>,
+          y opcionalmente <strong>Poligono</strong> (o Coordenadas) con la georreferenciación.
         </p>
-        <p className="text-xs text-[#6B5D45] mb-4">
+        <p className="text-xs text-[#6B5D45] mb-2">
           Formato de la columna Poligono — {GEO_FORMATO_AYUDA}
+        </p>
+        <p className="text-sm text-[#6B5D45] mb-4">
+          <strong>KML (.kml):</strong> exportado desde Google Earth o Google My Maps. Cada Placemark con nombre
+          se importa como un lote; si tiene un polígono dibujado, la superficie se calcula automáticamente.
         </p>
       </div>
 
@@ -161,9 +175,7 @@ export default function ImportarLotes() {
               </thead>
               <tbody>
                 {datos.map((row, i) => {
-                  const geoTexto = row.poligono || row.Poligono || row.coordenadas || row.Coordenadas ||
-                    row.georreferenciacion || row.Georreferenciacion
-                  const geo = parseGeorreferencia(geoTexto)
+                  const geo = georreferenciaDeFila(row)
                   let geoLabel = '—'
                   if (geo?.error) geoLabel = '⚠️ formato inválido'
                   else if (geo?.poligono) geoLabel = `✓ Polígono (${JSON.parse(geo.poligono).length} puntos)`
