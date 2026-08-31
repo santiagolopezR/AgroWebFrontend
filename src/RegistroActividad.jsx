@@ -616,46 +616,6 @@ export default function RegistroActividad() {
           </div>
         </div>
 
-        {/* ACTIVIDADES DE ESTA FINCA - EDITAR / ELIMINAR */}
-        {fincaId && (
-          <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
-            <h4 className="font-bold text-[#1F3D2B] mb-3">📋 Actividades de esta finca</h4>
-            {actividadesFinca.length === 0 ? (
-              <p className="text-sm text-[#6B5D45]">Todavía no hay actividades registradas en esta finca.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
-                      <th className="p-2 text-left font-bold">Fecha</th>
-                      <th className="p-2 text-left font-bold">Tipo</th>
-                      <th className="p-2 text-left font-bold">Responsable</th>
-                      <th className="p-2 text-center font-bold">Lotes</th>
-                      <th className="p-2 text-center font-bold">Costo</th>
-                      <th className="p-2 text-center font-bold">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {actividadesFinca.map(act => (
-                      <tr key={act.id} className={`border-b border-[#D8D2BE] ${editandoId === act.id ? 'bg-blue-100' : ''}`}>
-                        <td className="p-2">{act.fecha}</td>
-                        <td className="p-2">{act.api_tipoactividad?.nombre || 'N/A'}</td>
-                        <td className="p-2">{act.responsable || '—'}</td>
-                        <td className="p-2 text-center">{act.api_actividad_lote?.length || 0}</td>
-                        <td className="p-2 text-center font-bold">${(act.costo_total || 0).toLocaleString()}</td>
-                        <td className="p-2 text-center">
-                          <button type="button" onClick={() => cargarParaEditar(act)} disabled={cargandoEdicion} className="text-blue-600 font-bold mr-2" title="Editar">✏️</button>
-                          <button type="button" onClick={() => eliminarActividad(act)} className="text-red-600 font-bold" title="Eliminar">🗑️</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* PRODUCTOS */}
         <div>
           <div className="flex justify-between items-center mb-2">
@@ -826,6 +786,46 @@ export default function RegistroActividad() {
           {editandoId ? '💾 Actualizar Actividad' : '✅ Guardar Actividad'}
         </button>
       </form>
+
+      {/* ACTIVIDADES DE ESTA FINCA - EDITAR / ELIMINAR */}
+      {fincaId && (
+        <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE] mt-6">
+          <h4 className="font-bold text-[#1F3D2B] mb-3">📋 Actividades de esta finca</h4>
+          {actividadesFinca.length === 0 ? (
+            <p className="text-sm text-[#6B5D45]">Todavía no hay actividades registradas en esta finca.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
+                    <th className="p-2 text-left font-bold">Fecha</th>
+                    <th className="p-2 text-left font-bold">Tipo</th>
+                    <th className="p-2 text-left font-bold">Responsable</th>
+                    <th className="p-2 text-center font-bold">Lotes</th>
+                    <th className="p-2 text-center font-bold">Costo</th>
+                    <th className="p-2 text-center font-bold">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {actividadesFinca.map(act => (
+                    <tr key={act.id} className={`border-b border-[#D8D2BE] ${editandoId === act.id ? 'bg-blue-100' : ''}`}>
+                      <td className="p-2">{act.fecha}</td>
+                      <td className="p-2">{act.api_tipoactividad?.nombre || 'N/A'}</td>
+                      <td className="p-2">{act.responsable || '—'}</td>
+                      <td className="p-2 text-center">{act.api_actividad_lote?.length || 0}</td>
+                      <td className="p-2 text-center font-bold">${(act.costo_total || 0).toLocaleString()}</td>
+                      <td className="p-2 text-center">
+                        <button type="button" onClick={() => cargarParaEditar(act)} disabled={cargandoEdicion} className="text-blue-600 font-bold mr-2" title="Editar">✏️</button>
+                        <button type="button" onClick={() => eliminarActividad(act)} className="text-red-600 font-bold" title="Eliminar">🗑️</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MODAL CREAR PRODUCTO */}
       {showModalProducto && (
