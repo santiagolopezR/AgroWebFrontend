@@ -42,6 +42,11 @@ export default function RegistroActividad() {
   const [importDatos, setImportDatos] = useState([])
   const [importPreview, setImportPreview] = useState(false)
 
+  // EDITAR / ELIMINAR ACTIVIDADES
+  const [actividadesFinca, setActividadesFinca] = useState([])
+  const [editandoId, setEditandoId] = useState(null)
+  const [cargandoEdicion, setCargandoEdicion] = useState(false)
+
   useEffect(() => {
     getUser()
   }, [])
@@ -64,6 +69,9 @@ export default function RegistroActividad() {
   useEffect(() => {
     if (fincaId) {
       fetchLotes(fincaId)
+      fetchActividadesFinca(fincaId)
+    } else {
+      setActividadesFinca([])
     }
   }, [fincaId])
 
@@ -108,6 +116,112 @@ export default function RegistroActividad() {
   const fetchCostosFijos = async () => {
     const { data } = await supabase.from('api_costo_fijo').select('*').eq('user_id', user).eq('activo', true)
     setCostosFijos(data || [])
+  }
+
+  // ==================== EDITAR / ELIMINAR ACTIVIDADES ====================
+  const fetchActividadesFinca = async (fid) => {
+    const { data, error } = await supabase
+      .from('api_actividad')
+      .select('*, api_tipoactividad(nombre), api_actividad_lote(lote_id)')
+      .eq('finca_id', parseInt(fid))
+      .order('fecha', { ascending: false })
+      .limit(30)
+    if (error) {
+      console.error('No se pudieron cargar las actividades de la finca')
+      return
+    }
+    setActividadesFinca(data || [])
+  }
+
+  const cancelarEdicion = () => {
+    setEditandoId(null)
+    setFecha('')
+    setTipoActividadId('')
+    setResponsable('')
+    setLotesSeleccionados([])
+    setItems([])
+    setJornales('')
+    setCombustible('')
+    setCostosAdicionales([])
+  }
+
+  const cargarParaEditar = async (actividad) => {
+    setCargandoEdicion(true)
+    try {
+      const [{ data: itemsData }, { data: lotesData }, { data: adicionalesData }] = await Promise.all([
+        supabase.from('api_actividad_producto').select('*, api_producto(nombre, categoria)').eq('actividad_id', actividad.id),
+        supabase.from('api_actividad_lote').select('lote_id').eq('actividad_id', actividad.id),
+        supabase.from('api_costo_adicional').select('*, api_costo_fijo(nombre, unidad, valor_unitario)').eq('actividad_id', actividad.id),
+      ])
+
+      setEditandoId(actividad.id)
+      setFecha(actividad.fecha || '')
+      setTipoActividadId(actividad.tipo_id ? String(actividad.tipo_id) : '')
+      setResponsable(actividad.responsable || '')
+      setJornales(actividad.jornales_cantidad ? String(actividad.jornales_cantidad) : '')
+
+      // El combustible en litros no se guarda como tal, solo su costo total: se estima con el
+      // precio unitario actual (puede no coincidir exacto si el precio cambió desde entonces).
+      const costoCombustibleUnitario = costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario
+      const combustibleTotalGuardado = actividad.detalle_costos?.combustible
+      setCombustible(
+        costoCombustibleUnitario && combustibleTotalGuardado
+          ? (combustibleTotalGuardado / costoCombustibleUnitario).toFixed(2)
+          : ''
+      )
+
+      setLotesSeleccionados((lotesData || []).map(l => l.lote_id))
+
+      setItems((itemsData || []).map(it => {
+        const catNombre = it.api_producto?.categoria || ''
+        const cat = categorias.find(c => c.nombre?.toLowerCase().trim() === catNombre.toLowerCase().trim())
+        return {
+          id: it.id,
+          categoriaId: cat ? String(cat.id) : '',
+          categoriaNombre: catNombre,
+          productoId: it.producto_id ? String(it.producto_id) : '',
+          productoNombre: it.api_producto?.nombre || '',
+          descripcion: '',
+          cantidad: it.cantidad ?? '',
+          precioUnitario: it.precio_unitario ?? '',
+          total: (it.cantidad || 0) * (it.precio_unitario || 0),
+          dosisHa: it.dosis_por_hectarea ?? 0,
+        }
+      }))
+
+      setCostosAdicionales((adicionalesData || []).map(c => ({
+        id: c.id,
+        costo_fijo_id: c.costo_fijo_id ? String(c.costo_fijo_id) : '',
+        costo_fijo_nombre: c.api_costo_fijo?.nombre || '',
+        costo_fijo_unidad: c.api_costo_fijo?.unidad || '',
+        cantidad: c.cantidad ?? '',
+        valor_unitario: c.api_costo_fijo?.valor_unitario || 0,
+        valor_total: c.valor_total || 0,
+      })))
+
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch {
+      alert('No se pudo cargar la actividad para editar')
+    } finally {
+      setCargandoEdicion(false)
+    }
+  }
+
+  const eliminarActividad = async (actividad) => {
+    if (!confirm(`¿Eliminar la actividad "${actividad.api_tipoactividad?.nombre || 'Actividad'}" del ${actividad.fecha}? Esta acción no se puede deshacer.`)) return
+
+    try {
+      await supabase.from('api_actividad_producto').delete().eq('actividad_id', actividad.id)
+      await supabase.from('api_actividad_lote').delete().eq('actividad_id', actividad.id)
+      await supabase.from('api_costo_adicional').delete().eq('actividad_id', actividad.id)
+      const { error } = await supabase.from('api_actividad').delete().eq('id', actividad.id)
+      if (error) throw error
+
+      if (editandoId === actividad.id) cancelarEdicion()
+      fetchActividadesFinca(fincaId)
+    } catch (error) {
+      alert('No se pudo eliminar la actividad: ' + error.message)
+    }
   }
 
   // ==================== ITEMS PRODUCTOS ====================
@@ -286,29 +400,41 @@ export default function RegistroActividad() {
 
       const costoTotal = totalProductos + totalJornales + totalCombustible + totalAdicionales
 
-      // Crear actividad
-      const { data: actividades, error: errorActividad } = await supabase
-        .from('api_actividad')
-        .insert([{
-          finca_id: parseInt(fincaId),
-          fecha: fecha,
-          tipo_id: parseInt(tipoActividadId),
-          responsable: responsable,
-          jornales_cantidad: parseFloat(jornales) || 0,
-          costo_total: costoTotal,
-          detalle_costos: {
-            productos: totalProductos,
-            jornales: totalJornales,
-            combustible: totalCombustible,
-            adicionales: totalAdicionales
-          },
-          user_id: user
-        }])
-        .select()
+      const datosActividad = {
+        finca_id: parseInt(fincaId),
+        fecha: fecha,
+        tipo_id: parseInt(tipoActividadId),
+        responsable: responsable,
+        jornales_cantidad: parseFloat(jornales) || 0,
+        costo_total: costoTotal,
+        detalle_costos: {
+          productos: totalProductos,
+          jornales: totalJornales,
+          combustible: totalCombustible,
+          adicionales: totalAdicionales
+        },
+        user_id: user
+      }
 
-      if (errorActividad) throw errorActividad
+      let actividadId = editandoId
 
-      const actividadId = actividades[0].id
+      if (editandoId) {
+        // Editando: se actualiza la actividad y se reemplazan sus items/lotes/costos hijos
+        const { error: errorUpdate } = await supabase.from('api_actividad').update(datosActividad).eq('id', editandoId)
+        if (errorUpdate) throw errorUpdate
+
+        await supabase.from('api_actividad_producto').delete().eq('actividad_id', editandoId)
+        await supabase.from('api_actividad_lote').delete().eq('actividad_id', editandoId)
+        await supabase.from('api_costo_adicional').delete().eq('actividad_id', editandoId)
+      } else {
+        const { data: actividades, error: errorActividad } = await supabase
+          .from('api_actividad')
+          .insert([datosActividad])
+          .select()
+
+        if (errorActividad) throw errorActividad
+        actividadId = actividades[0].id
+      }
 
       // Guardar items de productos
       for (const item of items) {
@@ -352,18 +478,10 @@ export default function RegistroActividad() {
         if (errorLote) console.error('No se pudo vincular un lote a la actividad')
       }
 
-      alert('✅ Actividad registrada exitosamente')
-      
-      // Limpiar
-      setFincaId('')
-      setLotesSeleccionados([])
-      setFecha('')
-      setTipoActividadId('')
-      setResponsable('')
-      setItems([])
-      setJornales('')
-      setCombustible('')
-      setCostosAdicionales([])
+      alert(editandoId ? '✅ Actividad actualizada exitosamente' : '✅ Actividad registrada exitosamente')
+
+      cancelarEdicion()
+      fetchActividadesFinca(fincaId)
     } catch (error) {
       alert('Error: ' + error.message)
     }
@@ -375,6 +493,13 @@ export default function RegistroActividad() {
         <h2 className="text-3xl font-bold text-[#1F3D2B]">📊 Registro de Actividad</h2>
         <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
       </div>
+
+      {editandoId && (
+        <div className="bg-blue-100 border-2 border-blue-500 text-blue-800 px-4 py-3 rounded-lg font-bold mb-6 flex justify-between items-center">
+          <span>✏️ Editando actividad #{editandoId}</span>
+          <button type="button" onClick={cancelarEdicion} className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Cancelar edición</button>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* ENCABEZADO */}
@@ -490,6 +615,46 @@ export default function RegistroActividad() {
             )}
           </div>
         </div>
+
+        {/* ACTIVIDADES DE ESTA FINCA - EDITAR / ELIMINAR */}
+        {fincaId && (
+          <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
+            <h4 className="font-bold text-[#1F3D2B] mb-3">📋 Actividades de esta finca</h4>
+            {actividadesFinca.length === 0 ? (
+              <p className="text-sm text-[#6B5D45]">Todavía no hay actividades registradas en esta finca.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
+                      <th className="p-2 text-left font-bold">Fecha</th>
+                      <th className="p-2 text-left font-bold">Tipo</th>
+                      <th className="p-2 text-left font-bold">Responsable</th>
+                      <th className="p-2 text-center font-bold">Lotes</th>
+                      <th className="p-2 text-center font-bold">Costo</th>
+                      <th className="p-2 text-center font-bold">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {actividadesFinca.map(act => (
+                      <tr key={act.id} className={`border-b border-[#D8D2BE] ${editandoId === act.id ? 'bg-blue-100' : ''}`}>
+                        <td className="p-2">{act.fecha}</td>
+                        <td className="p-2">{act.api_tipoactividad?.nombre || 'N/A'}</td>
+                        <td className="p-2">{act.responsable || '—'}</td>
+                        <td className="p-2 text-center">{act.api_actividad_lote?.length || 0}</td>
+                        <td className="p-2 text-center font-bold">${(act.costo_total || 0).toLocaleString()}</td>
+                        <td className="p-2 text-center">
+                          <button type="button" onClick={() => cargarParaEditar(act)} disabled={cargandoEdicion} className="text-blue-600 font-bold mr-2" title="Editar">✏️</button>
+                          <button type="button" onClick={() => eliminarActividad(act)} className="text-red-600 font-bold" title="Eliminar">🗑️</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* PRODUCTOS */}
         <div>
@@ -658,7 +823,7 @@ export default function RegistroActividad() {
         </div>
 
         <button type="submit" className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116]">
-          ✅ Guardar Actividad
+          {editandoId ? '💾 Actualizar Actividad' : '✅ Guardar Actividad'}
         </button>
       </form>
 
