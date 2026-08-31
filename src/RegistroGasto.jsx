@@ -440,7 +440,7 @@ export default function RegistroGasto() {
       <form onSubmit={handleSave} className="space-y-6">
         <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B]">
           <div className="grid grid-cols-7 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-bold text-[#1F3D2B]">Finca *</label>
               <select value={fincaId} onChange={(e) => setFincaId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
                 <option value="">Selecciona</option>
@@ -448,28 +448,28 @@ export default function RegistroGasto() {
               </select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-bold text-[#1F3D2B]">Factura #</label>
               <input type="text" value={factura} onChange={(e) => setFactura(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" placeholder="001-001 (opcional)" />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-bold text-[#1F3D2B]">Proveedor</label>
-              <div className="flex gap-1">
-                <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} className="flex-1 p-2 border-2 border-[#D8D2BE] rounded text-sm">
+              <div className="flex gap-1 min-w-0">
+                <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} className="flex-1 min-w-0 p-2 border-2 border-[#D8D2BE] rounded text-sm">
                   <option value="">Sin prov</option>
                   {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
-                <button type="button" onClick={() => setShowModalProveedor(true)} className="bg-blue-600 text-white px-3 rounded font-bold text-sm">+</button>
+                <button type="button" onClick={() => setShowModalProveedor(true)} className="bg-blue-600 text-white px-3 rounded font-bold text-sm shrink-0">+</button>
               </div>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-bold text-[#1F3D2B]">Fecha *</label>
               <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-bold text-[#1F3D2B]">Pagado Por *</label>
               <select value={pagadoPor} onChange={(e) => setPagadoPor(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
                 <option value="">Selecciona</option>
@@ -478,7 +478,7 @@ export default function RegistroGasto() {
               </select>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <label className="text-sm font-bold text-[#1F3D2B]">IVA Global %</label>
               <input type="number" value={ivaGlobal} onChange={(e) => setIvaGlobal(parseFloat(e.target.value))} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
             </div>
