@@ -154,6 +154,7 @@ export default function Dashboard_V2() {
   const [lotesGeo, setLotesGeo] = useState([])
   const [totalActividades6m, setTotalActividades6m] = useState(0)
   const [actividadesPorMes, setActividadesPorMes] = useState([])
+  const [actividadesResumen, setActividadesResumen] = useState([])
 
   const [selectedLote, setSelectedLote] = useState(null)
   const [filtroActividad, setFiltroActividad] = useState(null)
@@ -233,7 +234,7 @@ export default function Dashboard_V2() {
           supabase.from('api_lote').select('*').eq('finca_id', fincaIdNum),
           supabase
             .from('api_actividad_lote')
-            .select('lote_id, api_actividad(id, fecha, tipo_id, finca_id)'),
+            .select('lote_id, api_actividad(id, fecha, tipo_id, finca_id, responsable, costo_total)'),
         ])
 
         if (lotesErr) throw lotesErr
@@ -268,6 +269,50 @@ export default function Dashboard_V2() {
         const idsFumigacion = tiposActividad.filter((t) => FILTROS_ACTIVIDAD.fumigacion.patron.test(t.nombre)).map((t) => t.id)
         const idsAbono = tiposActividad.filter((t) => FILTROS_ACTIVIDAD.abono.patron.test(t.nombre)).map((t) => t.id)
 
+        // Productos aplicados por actividad (para el detalle de lote y el resumen general)
+        const actividadIds = [...new Set(relFinca.map((rel) => rel.api_actividad?.id).filter(Boolean))]
+        const productosPorActividad = {}
+        if (actividadIds.length > 0) {
+          const { data: prodData } = await supabase
+            .from('api_actividad_producto')
+            .select('actividad_id, cantidad, dosis_por_hectarea, api_producto(nombre, unidad)')
+            .in('actividad_id', actividadIds)
+
+          for (const p of prodData || []) {
+            if (!productosPorActividad[p.actividad_id]) productosPorActividad[p.actividad_id] = []
+            productosPorActividad[p.actividad_id].push({
+              nombre: p.api_producto?.nombre || 'Producto',
+              unidad: p.api_producto?.unidad || '',
+              cantidad: p.cantidad,
+              dosisPorHa: p.dosis_por_hectarea,
+            })
+          }
+        }
+
+        // Lotes por actividad + lista deduplicada de actividades de la finca (para el resumen general)
+        const lotesPorActividad = {}
+        const actividadesFincaMap = new Map()
+        for (const rel of relFinca) {
+          const act = rel.api_actividad
+          if (!act) continue
+          const loteNombre = (lotesData || []).find((l) => l.id === rel.lote_id)?.nombre || 'Lote'
+          if (!lotesPorActividad[act.id]) lotesPorActividad[act.id] = []
+          lotesPorActividad[act.id].push(loteNombre)
+          actividadesFincaMap.set(act.id, act)
+        }
+
+        const resumen = [...actividadesFincaMap.values()]
+          .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+          .slice(0, 20)
+          .map((act) => ({
+            ...act,
+            tipoNombre: tipoNombrePorId[act.tipo_id] || 'Actividad',
+            lotes: lotesPorActividad[act.id] || [],
+            productos: productosPorActividad[act.id] || [],
+          }))
+
+        if (!cancelado) setActividadesResumen(resumen)
+
         // Enriquecimiento opcional de geometría desde el backend REST (no bloqueante)
         const geoApi = await obtenerGeometriaDesdeApi(fincaId)
         const geoApiPorId = new Map()
@@ -300,6 +345,7 @@ export default function Dashboard_V2() {
             actividadesRecientes: actividadesLote.slice(0, 5).map((a) => ({
               ...a,
               tipoNombre: tipoNombrePorId[a.tipo_id] || 'Actividad',
+              productos: productosPorActividad[a.id] || [],
             })),
           }
         })
@@ -586,13 +632,26 @@ export default function Dashboard_V2() {
                 </span>
               </div>
 
-              <p style={{ ...styles.detailKey, marginTop: 16, marginBottom: 8 }}>Actividades recientes</p>
+              <p style={{ ...styles.detailKey, marginTop: 16, marginBottom: 8 }}>Historial de actividades</p>
               {selectedLote.actividadesRecientes?.length > 0 ? (
                 <div>
                   {selectedLote.actividadesRecientes.map((a) => (
-                    <div key={a.id} style={styles.actividadFila}>
-                      <span>{a.tipoNombre}</span>
-                      <span style={styles.mutedText}>{a.fecha}</span>
+                    <div key={a.id} style={styles.actividadBloque}>
+                      <div style={styles.actividadFila}>
+                        <span style={{ fontWeight: 700 }}>{a.tipoNombre}</span>
+                        <span style={styles.mutedText}>{a.fecha}</span>
+                      </div>
+                      {a.productos.length > 0 ? (
+                        <div style={styles.productosLista}>
+                          {a.productos.map((p, i) => (
+                            <div key={i} style={styles.productoFila}>
+                              {p.nombre} — {p.cantidad ?? '—'}{p.unidad} ({p.dosisPorHa ?? '—'}/ha)
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={styles.productoFilaVacio}>Sin productos aplicados (jornales/otros)</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -632,6 +691,45 @@ export default function Dashboard_V2() {
               )
             })}
           </svg>
+        )}
+      </div>
+
+      {/* RESUMEN GENERAL DE ACTIVIDADES DE LA FINCA */}
+      <div style={{ ...styles.chartCard, marginTop: 24 }}>
+        <h3 style={styles.h3}>📋 Resumen de Actividades de la Finca</h3>
+        {actividadesResumen.length === 0 ? (
+          <p style={{ ...styles.mutedText, marginTop: 8 }}>No hay actividades registradas todavía.</p>
+        ) : (
+          <div style={styles.tablaWrapper}>
+            <table style={styles.tabla}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Fecha</th>
+                  <th style={styles.th}>Tipo</th>
+                  <th style={styles.th}>Lote(s)</th>
+                  <th style={styles.th}>Responsable</th>
+                  <th style={styles.th}>Productos aplicados</th>
+                  <th style={styles.thRight}>Costo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {actividadesResumen.map((a) => (
+                  <tr key={a.id}>
+                    <td style={styles.td}>{a.fecha}</td>
+                    <td style={styles.td}>{a.tipoNombre}</td>
+                    <td style={styles.td}>{a.lotes.join(', ') || '—'}</td>
+                    <td style={styles.td}>{a.responsable || '—'}</td>
+                    <td style={styles.td}>
+                      {a.productos.length > 0
+                        ? a.productos.map((p) => `${p.nombre} (${p.cantidad ?? '—'}${p.unidad}, ${p.dosisPorHa ?? '—'}/ha)`).join(' · ')
+                        : '—'}
+                    </td>
+                    <td style={styles.tdRight}>${(a.costo_total || 0).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
@@ -690,7 +788,17 @@ const styles = {
   detailKey: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600 },
   detailVal: { fontSize: 13, color: TEXT, fontWeight: 700 },
   badge: { color: '#0F1712', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize' },
-  actividadFila: { display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '6px 0', borderBottom: `1px solid ${BORDER}` },
+  actividadFila: { display: 'flex', justifyContent: 'space-between', fontSize: 12 },
+  actividadBloque: { padding: '8px 0', borderBottom: `1px solid ${BORDER}` },
+  productosLista: { marginTop: 4, paddingLeft: 10 },
+  productoFila: { fontSize: 11, color: TEXT_MUTED, padding: '2px 0' },
+  productoFilaVacio: { fontSize: 11, color: TEXT_MUTED, marginTop: 4, paddingLeft: 10, fontStyle: 'italic' },
+  tablaWrapper: { overflowX: 'auto', marginTop: 8 },
+  tabla: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  th: { textAlign: 'left', padding: '8px 10px', color: TEXT_MUTED, fontSize: 12, borderBottom: `2px solid ${BORDER}`, whiteSpace: 'nowrap' },
+  thRight: { textAlign: 'right', padding: '8px 10px', color: TEXT_MUTED, fontSize: 12, borderBottom: `2px solid ${BORDER}`, whiteSpace: 'nowrap' },
+  td: { padding: '8px 10px', color: TEXT, borderBottom: `1px solid ${BORDER}` },
+  tdRight: { padding: '8px 10px', color: TEXT, borderBottom: `1px solid ${BORDER}`, textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' },
   chartCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
   chartSvg: { width: '100%', height: 180, marginTop: 8 },
 }
