@@ -14,6 +14,7 @@ export default function RegistroActividad() {
   // FORM PRINCIPAL
   const [fincaId, setFincaId] = useState('')
   const [lotesSeleccionados, setLotesSeleccionados] = useState([])
+  const [filtroLotes, setFiltroLotes] = useState('')
   const [fecha, setFecha] = useState('')
   const [tipoActividadId, setTipoActividadId] = useState('')
   const [responsable, setResponsable] = useState('')
@@ -75,6 +76,18 @@ export default function RegistroActividad() {
   const fetchLotes = async (fincaId) => {
     const { data } = await supabase.from('api_lote').select('*').eq('finca_id', parseInt(fincaId))
     setLotes(data || [])
+    setFiltroLotes('')
+  }
+
+  const lotesFiltrados = lotes.filter(l => l.nombre.toLowerCase().includes(filtroLotes.trim().toLowerCase()))
+
+  const toggleLote = (id) => {
+    setLotesSeleccionados(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const seleccionarTodosFiltrados = () => {
+    const idsFiltrados = lotesFiltrados.map(l => l.id)
+    setLotesSeleccionados(prev => Array.from(new Set([...prev, ...idsFiltrados])))
   }
 
   const fetchCategorias = async () => {
@@ -400,24 +413,52 @@ export default function RegistroActividad() {
               )}
             </div>
 
-            {/* SELECT MULTIPLE */}
-            <select 
-              multiple 
-              value={lotesSeleccionados.map(String)}
-              onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value))
-                setLotesSeleccionados(selected)
-              }}
-              className="w-full p-3 border-2 border-[#D8D2BE] rounded text-sm bg-white max-h-48"
-            >
-              {lotes.map(l => (
-                <option key={l.id} value={l.id}>
-                  {l.nombre} ({l.area_hectareas} ha)
-                </option>
-              ))}
-            </select>
+            {/* BUSCADOR + LISTA DE LOTES (clic simple, pensado para fincas con muchos lotes) */}
+            <div style={pickerStyles.wrapper}>
+              <div style={pickerStyles.toolbar}>
+                <input
+                  type="text"
+                  value={filtroLotes}
+                  onChange={(e) => setFiltroLotes(e.target.value)}
+                  placeholder={`Buscar entre ${lotes.length} lote(s)...`}
+                  style={pickerStyles.buscador}
+                />
+                <button type="button" onClick={seleccionarTodosFiltrados} style={pickerStyles.botonChico}>
+                  Seleccionar {filtroLotes ? 'filtrados' : 'todos'}
+                </button>
+                <button type="button" onClick={() => setLotesSeleccionados([])} style={pickerStyles.botonChicoSecundario}>
+                  Limpiar
+                </button>
+              </div>
 
-            <p className="text-xs text-[#6B5D45] mt-2">💡 Ctrl+Click (Windows) o Cmd+Click (Mac) para seleccionar múltiples</p>
+              <div style={pickerStyles.lista}>
+                {lotesFiltrados.length === 0 && (
+                  <p style={pickerStyles.vacio}>
+                    {lotes.length === 0 ? 'Esta finca no tiene lotes' : `Sin resultados para "${filtroLotes}"`}
+                  </p>
+                )}
+                {lotesFiltrados.map(l => {
+                  const seleccionado = lotesSeleccionados.includes(l.id)
+                  return (
+                    <div
+                      key={l.id}
+                      onClick={() => toggleLote(l.id)}
+                      style={{ ...pickerStyles.fila, ...(seleccionado ? pickerStyles.filaSeleccionada : {}) }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={seleccionado}
+                        onChange={() => toggleLote(l.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={pickerStyles.checkbox}
+                      />
+                      <span style={pickerStyles.filaNombre}>{l.nombre}</span>
+                      <span style={pickerStyles.filaHa}>{l.area_hectareas ?? '—'} ha</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
 
             {/* LOTES SELECCIONADOS - CHIPS */}
             {lotesSeleccionados.length > 0 && (
@@ -683,4 +724,19 @@ export default function RegistroActividad() {
       )}
     </div>
   )
+}
+
+const pickerStyles = {
+  wrapper: { border: '2px solid #D8D2BE', borderRadius: 8, background: '#fff', overflow: 'hidden' },
+  toolbar: { display: 'flex', gap: 8, padding: 10, borderBottom: '2px solid #D8D2BE', background: '#F5F2E6', flexWrap: 'wrap' },
+  buscador: { flex: 1, minWidth: 160, padding: '8px 10px', border: '2px solid #D8D2BE', borderRadius: 6, fontSize: 13 },
+  botonChico: { padding: '8px 12px', background: '#1F3D2B', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  botonChicoSecundario: { padding: '8px 12px', background: '#D8D2BE', color: '#1F3D2B', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  lista: { maxHeight: 260, overflowY: 'auto' },
+  fila: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #F0EDE0' },
+  filaSeleccionada: { background: '#E8F5E9' },
+  checkbox: { width: 16, height: 16, accentColor: '#1F3D2B', cursor: 'pointer', flexShrink: 0 },
+  filaNombre: { flex: 1, fontSize: 13, color: '#1F3D2B', fontWeight: 600 },
+  filaHa: { fontSize: 12, color: '#6B5D45', fontWeight: 600 },
+  vacio: { padding: 16, textAlign: 'center', color: '#6B5D45', fontSize: 13 },
 }
