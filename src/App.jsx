@@ -34,7 +34,10 @@ export default function App() {
           <h1 className="text-3xl font-bold text-[#1F3D2B] mb-4">🌾 AgroWeb</h1>
           <p className="text-[#6B5D45] mb-6">Gestión agrícola inteligente</p>
           <button 
-            onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })}
+            onClick={() => supabase.auth.signInWithOAuth({
+              provider: 'google',
+              options: { queryParams: { prompt: 'select_account' } }
+            })}
             className="bg-[#1F3D2B] text-white px-6 py-3 rounded-lg font-bold hover:bg-[#0F2116]"
           >
             Inicia sesión con Google
