@@ -108,7 +108,7 @@ export default function ImportarLotes() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 md:p-8 max-w-4xl">
       <h2 className="text-3xl font-bold text-[#1F3D2B] mb-8">📥 Importar Lotes</h2>
 
       {/* Seleccionar Finca */}

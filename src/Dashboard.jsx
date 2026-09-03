@@ -89,7 +89,7 @@ export default function Dashboard() {
   const gastoPromedio = totalActividades > 0 ? totalGastos / totalActividades : 0
 
   return (
-    <div className="p-8 max-w-full">
+    <div className="p-4 md:p-8 max-w-full">
       <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">📊 Dashboard</h2>
 
       <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B] mb-6">
@@ -103,7 +103,7 @@ export default function Dashboard() {
         </select>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
           <p className="text-sm text-[#6B5D45] font-bold">Total Gastos</p>
           <p className="text-3xl font-bold text-[#1F3D2B]">${totalGastos.toLocaleString()}</p>
@@ -154,7 +154,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
           <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Detallados</h3>
           {gastos.length === 0 ? (

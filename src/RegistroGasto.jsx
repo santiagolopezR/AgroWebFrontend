@@ -441,7 +441,7 @@ export default function RegistroGasto() {
   }
 
   return (
-    <div className="p-8 max-w-full">
+    <div className="p-4 md:p-8 max-w-full">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-[#1F3D2B]">💰 Registrar Gasto</h2>
         <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
@@ -449,7 +449,7 @@ export default function RegistroGasto() {
 
       <form onSubmit={handleSave} className="space-y-6">
         <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B]">
-          <div className="grid grid-cols-7 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
             <div className="min-w-0">
               <label className="text-sm font-bold text-[#1F3D2B]">Finca *</label>
               <select value={fincaId} onChange={(e) => setFincaId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>

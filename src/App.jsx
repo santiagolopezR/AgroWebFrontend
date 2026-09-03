@@ -12,6 +12,12 @@ import Dashboard_V2 from './components/Dashboard_V2'
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard')
   const [user, setUser] = useState(null)
+  const [menuAbierto, setMenuAbierto] = useState(false)
+
+  const irA = (page) => {
+    setCurrentPage(page)
+    setMenuAbierto(false)
+  }
 
   useEffect(() => {
     getUser()
@@ -48,14 +54,32 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-[#F5F2E6]">
+    <div className="flex h-screen bg-[#F5F2E6] overflow-hidden">
+      {/* BARRA SUPERIOR (solo mobile) */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 h-14 flex items-center justify-between bg-[#1F3D2B] text-white px-4">
+        <h1 className="text-lg font-bold">🌾 AgroWeb</h1>
+        <button onClick={() => setMenuAbierto(true)} className="text-2xl leading-none" aria-label="Abrir menú">☰</button>
+      </div>
+
+      {/* OVERLAY (solo mobile, con el menú abierto) */}
+      {menuAbierto && (
+        <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMenuAbierto(false)} />
+      )}
+
       {/* SIDEBAR */}
-      <div className="w-64 bg-[#1F3D2B] text-white p-6 overflow-y-auto">
-        <h1 className="text-2xl font-bold mb-8">🌾 AgroWeb</h1>
-        
+      <div
+        className={`fixed md:static inset-y-0 left-0 z-50 w-64 bg-[#1F3D2B] text-white p-6 overflow-y-auto transform transition-transform duration-200 md:translate-x-0 ${
+          menuAbierto ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold">🌾 AgroWeb</h1>
+          <button onClick={() => setMenuAbierto(false)} className="md:hidden text-2xl leading-none" aria-label="Cerrar menú">✕</button>
+        </div>
+
         <div className="space-y-2 mb-8">
           <button
-            onClick={() => setCurrentPage('dashboard')}
+            onClick={() => irA('dashboard')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'dashboard'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -66,7 +90,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentPage('dashboard-v2')}
+            onClick={() => irA('dashboard-v2')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'dashboard-v2'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -77,7 +101,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentPage('gestiondatos')}
+            onClick={() => irA('gestiondatos')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'gestiondatos'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -88,7 +112,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentPage('zafras')}
+            onClick={() => irA('zafras')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'zafras'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -99,7 +123,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentPage('registro')}
+            onClick={() => irA('registro')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'registro'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -110,7 +134,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentPage('gasto')}
+            onClick={() => irA('gasto')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'gasto'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -121,7 +145,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentPage('editargasto')}
+            onClick={() => irA('editargasto')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'editargasto'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -132,7 +156,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setCurrentPage('importar')}
+            onClick={() => irA('importar')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
               currentPage === 'importar'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
@@ -152,7 +176,7 @@ export default function App() {
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-14 md:pt-0">
         {currentPage === 'dashboard' && <Dashboard />}
         {currentPage === 'dashboard-v2' && <Dashboard_V2 />}
         {currentPage === 'gestiondatos' && <GestionDatos />}

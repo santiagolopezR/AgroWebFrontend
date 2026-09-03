@@ -112,7 +112,7 @@ export default function Zafras() {
   }
 
   return (
-    <div className="p-8 max-w-6xl">
+    <div className="p-4 md:p-8 max-w-6xl">
       <h2 className="text-3xl font-bold text-[#1F3D2B] mb-4">🌾 Gestión de Zafras</h2>
       
       <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#1F3D2B] mb-8">
@@ -121,7 +121,7 @@ export default function Zafras() {
         <p className="text-[#6B5D45] text-sm mt-2">Ejemplo: Maíz del 15 dic → 30 abr. Todos los costos van aquí.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
           <label className="block font-bold mb-2">Selecciona Finca:</label>
           <select
@@ -157,7 +157,7 @@ export default function Zafras() {
           <form onSubmit={handleCreateZafra} className="bg-white p-8 rounded-lg border-4 border-[#1F3D2B]">
             <h3 className="text-2xl font-bold text-[#1F3D2B] mb-6">Crear Nueva Zafra</h3>
 
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="block font-bold mb-2">Cultivo:</label>
                 <select

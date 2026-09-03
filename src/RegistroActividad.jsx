@@ -488,7 +488,7 @@ export default function RegistroActividad() {
   }
 
   return (
-    <div className="p-8 max-w-full">
+    <div className="p-4 md:p-8 max-w-full">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-[#1F3D2B]">📊 Registro de Actividad</h2>
         <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
@@ -504,7 +504,7 @@ export default function RegistroActividad() {
       <form onSubmit={handleSave} className="space-y-6">
         {/* ENCABEZADO */}
         <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B]">
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div>
               <label className="text-sm font-bold text-[#1F3D2B]">Finca *</label>
               <select value={fincaId} onChange={(e) => setFincaId(e.target.value)} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" required>
@@ -681,7 +681,7 @@ export default function RegistroActividad() {
         </div>
 
         {/* JORNALES Y COMBUSTIBLE */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
             <h4 className="font-bold text-[#1F3D2B] mb-3">👷 Jornales</h4>
             <input type="number" step="0.01" value={jornales} onChange={(e) => setJornales(e.target.value)} placeholder="# jornales" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm mb-2" />
@@ -723,7 +723,7 @@ export default function RegistroActividad() {
           <div className="space-y-3">
             {costosAdicionales.map(costo => (
               <div key={costo.id} className="p-3 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
-                <div className="grid grid-cols-4 gap-2 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
                   <select 
                     value={costo.costo_fijo_id} 
                     onChange={(e) => updateCostoAdicional(costo.id, 'costo_fijo_id', e.target.value)} 
@@ -762,7 +762,7 @@ export default function RegistroActividad() {
         {/* RESUMEN */}
         <div className="bg-[#F5F2E6] p-4 rounded-lg border-4 border-[#1F3D2B]">
           <h4 className="font-bold text-[#1F3D2B] mb-3">RESUMEN DE COSTOS</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <p><span className="font-bold">Productos:</span> ${items.reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()}</p>
               <p><span className="font-bold">Jornales:</span> ${((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)).toLocaleString()}</p>

@@ -112,7 +112,7 @@ export default function EditarGasto() {
     : gastos
 
   return (
-    <div className="p-8 max-w-full">
+    <div className="p-4 md:p-8 max-w-full">
       <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">✏️ Editar Gastos</h2>
 
       <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B] mb-6">
@@ -133,7 +133,7 @@ export default function EditarGasto() {
                 <div className="space-y-4">
                   <h3 className="font-bold text-lg text-[#1F3D2B]">Editando Gasto</h3>
                   
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-sm font-bold">Factura #</label>
                       <input 
@@ -164,7 +164,7 @@ export default function EditarGasto() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-sm font-bold">Total Bruto</label>
                       <input 

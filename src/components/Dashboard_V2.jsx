@@ -583,7 +583,7 @@ export default function Dashboard_V2() {
   }
 
   return (
-    <div style={styles.page}>
+    <div className="dv2-page" style={styles.page}>
       <style>{cssBase}</style>
 
       <div style={styles.headerRow}>
@@ -624,7 +624,7 @@ export default function Dashboard_V2() {
       </div>
 
       {/* MAPA + PANEL DETALLE */}
-      <div style={mapExpandido ? styles.mapRowExpandido : styles.mapRow}>
+      <div className="dv2-map-row" style={mapExpandido ? styles.mapRowExpandido : styles.mapRow}>
         <div style={styles.mapCard}>
           <div style={styles.mapHeader}>
             <h3 style={styles.h3}>🗺️ Mapa de Lotes</h3>
@@ -888,6 +888,11 @@ const cssBase = `
   .leaflet-control-zoom a:hover { background: #22362A !important; }
   .leaflet-tooltip { background: #1A2B22 !important; color: #EAF3EC !important; border: 1px solid #2A3D31 !important; }
   .dv2-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
+
+  @media (max-width: 700px) {
+    .dv2-page { padding: 16px !important; }
+    .dv2-map-row { grid-template-columns: 1fr !important; }
+  }
 `
 
 // Paleta dark

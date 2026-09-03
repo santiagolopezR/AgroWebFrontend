@@ -350,7 +350,7 @@ export default function GestionDatos() {
   }
 
   return (
-    <div className="p-8 max-w-full">
+    <div className="p-4 md:p-8 max-w-full">
       <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">📋 Gestión de Datos</h2>
 
       {/* TABS */}
@@ -725,7 +725,7 @@ export default function GestionDatos() {
                         <h4 className="font-bold text-[#1F3D2B] mb-3">{p.nombre_trabajador}</h4>
                         
                         <div className="mb-3 p-4 bg-white rounded border-2 border-[#D8D2BE]">
-                          <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                             <div className="p-2 bg-[#F5F2E6] rounded">
                               <p className="text-xs text-[#6B5D45] font-bold">PRÉSTAMO ORIGINAL</p>
                               <p className="text-lg font-bold text-[#1F3D2B]">${p.monto_prestado.toLocaleString()}</p>
