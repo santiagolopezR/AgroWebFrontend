@@ -688,7 +688,7 @@ export default function RegistroActividad() {
             {costosFijos.find(c => c.nombre.toLowerCase() === 'jornal') && (
               <div className="text-sm">
                 <p className="bg-[#F5F2E6] p-2 rounded font-bold">
-                  <span>Total:</span> ${((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)).toLocaleString()}
+                  <span>Total:</span> ${((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)).toLocaleString('es-CO')}
                 </p>
               </div>
             )}
@@ -703,7 +703,7 @@ export default function RegistroActividad() {
             {costosFijos.find(c => c.nombre.toLowerCase() === 'combustible') && (
               <div className="text-sm">
                 <p className="bg-[#F5F2E6] p-2 rounded font-bold">
-                  <span>Total:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString()}
+                  <span>Total:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString('es-CO')}
                 </p>
               </div>
             )}
@@ -747,14 +747,14 @@ export default function RegistroActividad() {
                   <button type="button" onClick={() => removeCostoAdicional(costo.id)} className="text-red-600 font-bold text-lg">🗑️</button>
                 </div>
                 
-                <p className="font-bold text-sm">Total: ${costo.valor_total.toLocaleString()}</p>
+                <p className="font-bold text-sm">Total: ${costo.valor_total.toLocaleString('es-CO')}</p>
               </div>
             ))}
           </div>
 
           {costosAdicionales.length > 0 && (
             <p className="mt-3 font-bold text-lg">
-              Total Adicionales: ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString()}
+              Total Adicionales: ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString('es-CO')}
             </p>
           )}
         </div>
@@ -764,12 +764,12 @@ export default function RegistroActividad() {
           <h4 className="font-bold text-[#1F3D2B] mb-3">RESUMEN DE COSTOS</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <p><span className="font-bold">Productos:</span> ${items.reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()}</p>
-              <p><span className="font-bold">Jornales:</span> ${((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)).toLocaleString()}</p>
+              <p><span className="font-bold">Productos:</span> ${items.reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString('es-CO')}</p>
+              <p><span className="font-bold">Jornales:</span> ${((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)).toLocaleString('es-CO')}</p>
             </div>
             <div>
-              <p><span className="font-bold">Combustible:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString()}</p>
-              <p><span className="font-bold">Adicionales:</span> ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString()}</p>
+              <p><span className="font-bold">Combustible:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString('es-CO')}</p>
+              <p><span className="font-bold">Adicionales:</span> ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString('es-CO')}</p>
             </div>
           </div>
           <p className="mt-3 font-bold text-lg text-[#1F3D2B]">
@@ -778,7 +778,7 @@ export default function RegistroActividad() {
               ((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)) +
               ((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)) +
               costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0)
-            ).toLocaleString()}
+            ).toLocaleString('es-CO')}
           </p>
         </div>
 
@@ -813,7 +813,7 @@ export default function RegistroActividad() {
                       <td className="p-2">{act.api_tipoactividad?.nombre || 'N/A'}</td>
                       <td className="p-2">{act.responsable || '—'}</td>
                       <td className="p-2 text-center">{act.api_actividad_lote?.length || 0}</td>
-                      <td className="p-2 text-center font-bold">${(act.costo_total || 0).toLocaleString()}</td>
+                      <td className="p-2 text-center font-bold">${(act.costo_total || 0).toLocaleString('es-CO')}</td>
                       <td className="p-2 text-center">
                         <button type="button" onClick={() => cargarParaEditar(act)} disabled={cargandoEdicion} className="text-blue-600 font-bold mr-2" title="Editar">✏️</button>
                         <button type="button" onClick={() => eliminarActividad(act)} className="text-red-600 font-bold" title="Eliminar">🗑️</button>

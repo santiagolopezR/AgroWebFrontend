@@ -721,11 +721,11 @@ export default function Dashboard_V2() {
               </div>
               <div style={styles.detailFila}>
                 <span style={styles.detailKey}>Costo total (histórico)</span>
-                <span style={styles.detailVal}>${selectedLote.costoTotalLote.toLocaleString()}</span>
+                <span style={styles.detailVal}>${selectedLote.costoTotalLote.toLocaleString('es-CO')}</span>
               </div>
               <div style={styles.detailFila}>
                 <span style={styles.detailKey}>Costo / ha</span>
-                <span style={styles.detailVal}>{selectedLote.costoPorHa != null ? `$${selectedLote.costoPorHa.toLocaleString()}` : '—'}</span>
+                <span style={styles.detailVal}>{selectedLote.costoPorHa != null ? `$${selectedLote.costoPorHa.toLocaleString('es-CO')}` : '—'}</span>
               </div>
 
               <p style={{ ...styles.detailKey, marginTop: 16, marginBottom: 8 }}>Historial de actividades</p>
@@ -741,7 +741,7 @@ export default function Dashboard_V2() {
                         <span style={styles.productoNota}>
                           Costo de este lote{a.compartidoConOtrosLotes ? ' (prorrateado por área)' : ''}
                         </span>
-                        <span style={{ fontWeight: 700 }}>${a.costoEsteLote.toLocaleString()}</span>
+                        <span style={{ fontWeight: 700 }}>${a.costoEsteLote.toLocaleString('es-CO')}</span>
                       </div>
                       {a.productos.length > 0 ? (
                         <div style={styles.productosLista}>
@@ -844,7 +844,7 @@ export default function Dashboard_V2() {
             <div style={styles.totalesFiltroRow}>
               <span>{totalesFiltrados.cantidad} actividad(es)</span>
               <span>·</span>
-              <span>${totalesFiltrados.costo.toLocaleString()} en total</span>
+              <span>${totalesFiltrados.costo.toLocaleString('es-CO')} en total</span>
             </div>
 
             {actividadesFiltradas.length === 0 ? (
@@ -874,7 +874,7 @@ export default function Dashboard_V2() {
                             ? a.productos.map((p) => `${p.nombre} (${p.cantidad ?? '—'}${p.unidad}, ${p.dosisPorHa ?? '—'}/ha)`).join(' · ')
                             : '—'}
                         </td>
-                        <td style={styles.tdRight}>${(a.costo_total || 0).toLocaleString()}</td>
+                        <td style={styles.tdRight}>${(a.costo_total || 0).toLocaleString('es-CO')}</td>
                       </tr>
                     ))}
                   </tbody>

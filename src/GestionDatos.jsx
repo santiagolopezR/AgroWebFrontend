@@ -616,7 +616,7 @@ export default function GestionDatos() {
               <div key={c.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
                 <div>
                   <p className="font-bold text-[#1F3D2B]">{c.nombre}</p>
-                  <p className="text-sm text-[#6B5D45]">${c.valor_unitario.toLocaleString()} {c.unidad}</p>
+                  <p className="text-sm text-[#6B5D45]">${c.valor_unitario.toLocaleString('es-CO')} {c.unidad}</p>
                 </div>
                 <button onClick={() => deleteCostoFijo(c.id)} className="text-red-600 font-bold">🗑️</button>
               </div>
@@ -699,9 +699,9 @@ export default function GestionDatos() {
                       <button onClick={() => deletePrestamo(p.id)} className="text-red-600 font-bold">🗑️</button>
                     </div>
                     <div className="flex justify-between mb-2">
-                      <span className="text-sm">Préstamo: ${p.monto_prestado.toLocaleString()}</span>
+                      <span className="text-sm">Préstamo: ${p.monto_prestado.toLocaleString('es-CO')}</span>
                       <span className={`text-sm font-bold ${p.saldo_pendiente === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        Saldo: ${p.saldo_pendiente.toLocaleString()}
+                        Saldo: ${p.saldo_pendiente.toLocaleString('es-CO')}
                       </span>
                     </div>
                     <button 
@@ -728,17 +728,17 @@ export default function GestionDatos() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                             <div className="p-2 bg-[#F5F2E6] rounded">
                               <p className="text-xs text-[#6B5D45] font-bold">PRÉSTAMO ORIGINAL</p>
-                              <p className="text-lg font-bold text-[#1F3D2B]">${p.monto_prestado.toLocaleString()}</p>
+                              <p className="text-lg font-bold text-[#1F3D2B]">${p.monto_prestado.toLocaleString('es-CO')}</p>
                             </div>
                             <div className="p-2 bg-blue-100 rounded border-2 border-blue-400">
                               <p className="text-xs text-blue-700 font-bold">TOTAL ABONADO</p>
-                              <p className="text-lg font-bold text-blue-700">${(p.monto_prestado - p.saldo_pendiente).toLocaleString()}</p>
+                              <p className="text-lg font-bold text-blue-700">${(p.monto_prestado - p.saldo_pendiente).toLocaleString('es-CO')}</p>
                             </div>
                           </div>
 
                           <div className="p-3 bg-red-100 rounded border-2 border-red-400 mb-3">
                             <p className="text-xs text-red-700 font-bold">SALDO PENDIENTE</p>
-                            <p className="text-2xl font-bold text-red-700">${p.saldo_pendiente.toLocaleString()}</p>
+                            <p className="text-2xl font-bold text-red-700">${p.saldo_pendiente.toLocaleString('es-CO')}</p>
                           </div>
 
                           {p.api_abono_prestamo?.length > 0 && (
@@ -747,7 +747,7 @@ export default function GestionDatos() {
                               <div className="text-xs space-y-1 bg-[#F5F2E6] p-2 rounded max-h-32 overflow-y-auto">
                                 {[...p.api_abono_prestamo].reverse().map(a => (
                                   <p key={a.id} className="flex justify-between">
-                                    <span><span className="font-bold">{a.fecha_abono}:</span> ${a.monto_abono.toLocaleString()}</span>
+                                    <span><span className="font-bold">{a.fecha_abono}:</span> ${a.monto_abono.toLocaleString('es-CO')}</span>
                                     <span className="text-[#6B5D45]">({a.quien_desconto})</span>
                                   </p>
                                 ))}
@@ -773,7 +773,7 @@ export default function GestionDatos() {
                             <div className="p-3 bg-green-100 rounded border-2 border-green-400">
                               <p className="text-xs text-green-700 font-bold mb-1">NUEVO SALDO DESPUÉS DEL ABONO</p>
                               <p className="text-xl font-bold text-green-700">
-                                ${Math.max(0, p.saldo_pendiente - parseFloat(newAbono.monto_abono)).toLocaleString()}
+                                ${Math.max(0, p.saldo_pendiente - parseFloat(newAbono.monto_abono)).toLocaleString('es-CO')}
                               </p>
                               {Math.max(0, p.saldo_pendiente - parseFloat(newAbono.monto_abono)) === 0 && (
                                 <p className="text-xs text-green-600 font-bold mt-1">✅ PRÉSTAMO COMPLETAMENTE PAGADO</p>
@@ -849,8 +849,8 @@ export default function GestionDatos() {
               <div className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
                 <h4 className="font-bold text-[#1F3D2B] mb-3">🔴 Ganaderia OL</h4>
                 <div className="flex gap-4 mb-3">
-                  <p className="text-2xl font-bold text-red-600">Por cobrar: ${balancePrestamos.ganaderia_ol.toLocaleString()}</p>
-                  <p className="text-lg font-bold text-blue-600">Abonado: ${balancePrestamos.abonado_ganaderia_ol.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-red-600">Por cobrar: ${balancePrestamos.ganaderia_ol.toLocaleString('es-CO')}</p>
+                  <p className="text-lg font-bold text-blue-600">Abonado: ${balancePrestamos.abonado_ganaderia_ol.toLocaleString('es-CO')}</p>
                 </div>
 
                 <div className="space-y-2">
@@ -859,10 +859,10 @@ export default function GestionDatos() {
                       <div className="flex justify-between">
                         <span className="font-bold">{p.nombre_trabajador}</span>
                         <span className={p.saldo_pendiente === 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
-                          ${p.saldo_pendiente.toLocaleString()}
+                          ${p.saldo_pendiente.toLocaleString('es-CO')}
                         </span>
                       </div>
-                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | Abonado: ${(p.monto_prestado - p.saldo_pendiente).toLocaleString()} | {p.estado}</p>
+                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString('es-CO')} | Abonado: ${(p.monto_prestado - p.saldo_pendiente).toLocaleString('es-CO')} | {p.estado}</p>
                     </div>
                   ))}
                 </div>
@@ -872,8 +872,8 @@ export default function GestionDatos() {
               <div className="p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
                 <h4 className="font-bold text-[#1F3D2B] mb-3">🟠 Santiago</h4>
                 <div className="flex gap-4 mb-3">
-                  <p className="text-2xl font-bold text-orange-600">Por cobrar: ${balancePrestamos.santiago.toLocaleString()}</p>
-                  <p className="text-lg font-bold text-blue-600">Abonado: ${balancePrestamos.abonado_santiago.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-orange-600">Por cobrar: ${balancePrestamos.santiago.toLocaleString('es-CO')}</p>
+                  <p className="text-lg font-bold text-blue-600">Abonado: ${balancePrestamos.abonado_santiago.toLocaleString('es-CO')}</p>
                 </div>
 
                 <div className="space-y-2">
@@ -882,10 +882,10 @@ export default function GestionDatos() {
                       <div className="flex justify-between">
                         <span className="font-bold">{p.nombre_trabajador}</span>
                         <span className={p.saldo_pendiente === 0 ? 'text-green-600 font-bold' : 'text-orange-600 font-bold'}>
-                          ${p.saldo_pendiente.toLocaleString()}
+                          ${p.saldo_pendiente.toLocaleString('es-CO')}
                         </span>
                       </div>
-                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString()} | Abonado: ${(p.monto_prestado - p.saldo_pendiente).toLocaleString()} | {p.estado}</p>
+                      <p className="text-xs text-[#6B5D45]">Prestado: ${p.monto_prestado.toLocaleString('es-CO')} | Abonado: ${(p.monto_prestado - p.saldo_pendiente).toLocaleString('es-CO')} | {p.estado}</p>
                     </div>
                   ))}
                 </div>
@@ -895,11 +895,11 @@ export default function GestionDatos() {
               <div className="p-4 bg-[#1F3D2B] rounded border-2 border-[#1F3D2B] text-center">
                 <p className="text-white text-lg">BALANCE TOTAL</p>
                 <p className="text-3xl font-bold text-yellow-300">
-                  ${(balancePrestamos.ganaderia_ol + balancePrestamos.santiago).toLocaleString()}
+                  ${(balancePrestamos.ganaderia_ol + balancePrestamos.santiago).toLocaleString('es-CO')}
                 </p>
                 <p className="text-white text-sm mb-2">POR COBRAR</p>
                 <p className="text-lg font-bold text-blue-300">
-                  ${(balancePrestamos.abonado_ganaderia_ol + balancePrestamos.abonado_santiago).toLocaleString()} abonado en total
+                  ${(balancePrestamos.abonado_ganaderia_ol + balancePrestamos.abonado_santiago).toLocaleString('es-CO')} abonado en total
                 </p>
               </div>
             </div>

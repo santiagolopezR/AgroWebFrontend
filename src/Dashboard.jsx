@@ -123,10 +123,10 @@ export default function Dashboard() {
           </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#D8D2BE]">
             <p className="text-xs text-[#6B5D45] font-bold">Total del período</p>
-            <p className="text-2xl font-bold text-[#1F3D2B]">${totalPeriodo.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-[#1F3D2B]">${totalPeriodo.toLocaleString('es-CO')}</p>
           </div>
           <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#D8D2BE]">
             <p className="text-xs text-[#6B5D45] font-bold"># Facturas</p>
@@ -134,7 +134,7 @@ export default function Dashboard() {
           </div>
           <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#D8D2BE]">
             <p className="text-xs text-[#6B5D45] font-bold">Promedio / factura</p>
-            <p className="text-2xl font-bold text-[#1F3D2B]">${promedioPeriodo.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-[#1F3D2B]">${promedioPeriodo.toLocaleString('es-CO')}</p>
           </div>
         </div>
 
@@ -152,7 +152,7 @@ export default function Dashboard() {
                     style={{ width: `${(c.total / categoriaTotales[0].total) * 100}%` }}
                   ></div>
                 </div>
-                <p className="text-sm font-bold ml-4">${c.total.toLocaleString()}</p>
+                <p className="text-sm font-bold ml-4">${c.total.toLocaleString('es-CO')}</p>
               </div>
             ))}
           </div>
@@ -187,7 +187,7 @@ export default function Dashboard() {
                         : '—'}
                     </td>
                     <td className="p-3">{act.api_tipoactividad?.nombre || 'N/A'}</td>
-                    <td className="p-3 text-center font-bold">${parseFloat(act.costo_total || 0).toLocaleString()}</td>
+                    <td className="p-3 text-center font-bold">${parseFloat(act.costo_total || 0).toLocaleString('es-CO')}</td>
                     <td className="p-3">{act.responsable}</td>
                   </tr>
                 ))}
@@ -224,8 +224,8 @@ export default function Dashboard() {
                     <td className="p-3">{item.factura}</td>
                     <td className="p-3">{item.producto}</td>
                     <td className="p-3 text-center">{item.cantidad}</td>
-                    <td className="p-3 text-center">${parseFloat(item.precioUnitario || 0).toLocaleString()}</td>
-                    <td className="p-3 text-center font-bold">${parseFloat(item.total || 0).toLocaleString()}</td>
+                    <td className="p-3 text-center">${parseFloat(item.precioUnitario || 0).toLocaleString('es-CO')}</td>
+                    <td className="p-3 text-center font-bold">${parseFloat(item.total || 0).toLocaleString('es-CO')}</td>
                   </tr>
                 ))}
               </tbody>

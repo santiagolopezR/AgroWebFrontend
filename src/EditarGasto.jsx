@@ -181,14 +181,14 @@ export default function EditarGasto() {
                       <td className="p-2">{g.fecha}</td>
                       <td className="p-2">{g.api_finca?.nombre || '—'}</td>
                       <td className="p-2">{g.api_proveedor?.nombre || '—'}</td>
-                      <td className="p-2 text-right font-bold">${parseFloat(g.total_neto || 0).toLocaleString()}</td>
+                      <td className="p-2 text-right font-bold">${parseFloat(g.total_neto || 0).toLocaleString('es-CO')}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <p className="mt-3 font-bold text-[#1F3D2B]">
-              Total: ${gastosFiltrados.reduce((sum, g) => sum + parseFloat(g.total_neto || 0), 0).toLocaleString()}
+              Total: ${gastosFiltrados.reduce((sum, g) => sum + parseFloat(g.total_neto || 0), 0).toLocaleString('es-CO')}
               {' '}({gastosFiltrados.length} gasto{gastosFiltrados.length === 1 ? '' : 's'})
             </p>
           </div>
@@ -206,7 +206,7 @@ export default function EditarGasto() {
                     <div key={c.categoria}>
                       <div className="flex justify-between text-xs mb-1">
                         <span className="font-bold">{c.categoria}</span>
-                        <span>${c.total.toLocaleString()}</span>
+                        <span>${c.total.toLocaleString('es-CO')}</span>
                       </div>
                       <div className="bg-[#F5F2E6] rounded h-4">
                         <div
@@ -336,7 +336,7 @@ export default function EditarGasto() {
                       <p className="text-sm text-[#6B5D45]">{gasto.fecha} | Pagado por: {gasto.pagado_por}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-xl text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString()}</p>
+                      <p className="font-bold text-xl text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString('es-CO')}</p>
                       <p className="text-xs text-[#6B5D45]">IVA: {gasto.iva_porcentaje}%</p>
                     </div>
                   </div>
@@ -379,8 +379,8 @@ export default function EditarGasto() {
                             <tr key={item.id} className="border-b border-[#D8D2BE]">
                               <td className="p-1">{item.descripcion}</td>
                               <td className="p-1 text-center">{item.cantidad}</td>
-                              <td className="p-1 text-right">${parseFloat(item.precio_unitario).toLocaleString()}</td>
-                              <td className="p-1 text-right font-bold">${parseFloat(item.total).toLocaleString()}</td>
+                              <td className="p-1 text-right">${parseFloat(item.precio_unitario).toLocaleString('es-CO')}</td>
+                              <td className="p-1 text-right font-bold">${parseFloat(item.total).toLocaleString('es-CO')}</td>
                             </tr>
                           ))}
                         </tbody>
