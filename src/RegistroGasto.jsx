@@ -14,8 +14,7 @@ export default function RegistroGasto() {
   const [proveedorId, setProveedorId] = useState('')
   const [fecha, setFecha] = useState('')
   const [pagadoPor, setPagadoPor] = useState('')
-  const [ivaGlobal, setIvaGlobal] = useState(19)
-  
+
   const [items, setItems] = useState([])
   const [showModalProveedor, setShowModalProveedor] = useState(false)
   const [showModalProducto, setShowModalProducto] = useState(false)
@@ -79,8 +78,8 @@ export default function RegistroGasto() {
       descripcion: '', 
       cantidad: '', 
       precioUnitario: '', 
-      total: 0, 
-      ivaItem: 19,
+      total: 0,
+      ivaItem: 0,
       totalConIva: 0
     }])
   }
@@ -119,7 +118,7 @@ export default function RegistroGasto() {
           updated.totalConIva = total + (total * (iva / 100))
         } else {
           const total = parseFloat(updated.total) || 0
-          const iva = parseFloat(updated.ivaItem) || 19
+          const iva = parseFloat(updated.ivaItem) || 0
           updated.totalConIva = total + (total * (iva / 100))
         }
 
@@ -264,7 +263,7 @@ export default function RegistroGasto() {
         const descripcion = row['Descripción'] || ''
         const cantidad = parseFloat(row['Cantidad']) || 0
         const precioUnitario = parseFloat(row['Precio Unitario']) || 0
-        const ivaItem = parseFloat(row['IVA%']) || 19
+        const ivaItem = parseFloat(row['IVA%']) || 0
         const pagadoPorRow = row['Pagado Por'] || 'Santiago'
 
         const finca = fincas.find(f => f.nombre.toLowerCase() === fincaNombre?.toLowerCase())
@@ -383,13 +382,15 @@ export default function RegistroGasto() {
 
     const totalBruto = items.reduce((sum, item) => sum + (item.total || 0), 0)
     const totalIvaCalc = items.reduce((sum, item) => sum + ((item.total || 0) * (item.ivaItem / 100)), 0)
+    // IVA% del encabezado es solo informativo: el promedio ponderado real de los items, no un valor fijo
+    const ivaPromedio = totalBruto > 0 ? Number(((totalIvaCalc / totalBruto) * 100).toFixed(2)) : 0
 
     const { data: gasto, error: errorGasto } = await supabase.from('api_finca_gasto').insert([{
       finca_id: parseInt(fincaId),
       factura_numero: factura || `S/N-${Date.now()}`,
       proveedor_id: proveedorId ? parseInt(proveedorId) : null,
       fecha: fecha,
-      iva_porcentaje: ivaGlobal,
+      iva_porcentaje: ivaPromedio,
       total_bruto: totalBruto,
       total_iva: totalIvaCalc,
       total_neto: totalBruto + totalIvaCalc,
@@ -486,11 +487,6 @@ export default function RegistroGasto() {
                 <option value="Ganaderia OL">Ganaderia OL</option>
                 <option value="Santiago">Santiago</option>
               </select>
-            </div>
-
-            <div className="min-w-0">
-              <label className="text-sm font-bold text-[#1F3D2B]">IVA Global %</label>
-              <input type="number" value={ivaGlobal} onChange={(e) => setIvaGlobal(parseFloat(e.target.value))} className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
             </div>
 
             <div className="flex items-end">

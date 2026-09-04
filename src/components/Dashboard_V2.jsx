@@ -539,6 +539,9 @@ export default function Dashboard_V2() {
 
       if (bounds.length > 0) {
         mapInstanceRef.current.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 })
+      } else {
+        // Sin geometría para esta finca: resetea la vista en vez de dejar la de la finca anterior
+        mapInstanceRef.current.setView([-34.6, -58.4], 5)
       }
     } catch {
       setMapError('Mapa no disponible')
@@ -651,7 +654,17 @@ export default function Dashboard_V2() {
               <span style={{ ...styles.leyendaDot, background: COLOR_VERDE }} /> Al día este mes
               <span style={{ ...styles.leyendaDot, background: COLOR_ROJO, marginLeft: 12 }} /> Pendiente
             </div>
-          ) : (
+          ) : null}
+
+          {filtroActividad && !tiposActividad.some((t) => FILTROS_ACTIVIDAD[filtroActividad].patron.test(t.nombre)) && (
+            <div style={{ ...styles.alertaAmarilla, marginTop: 8 }}>
+              ⚠️ No encontramos ningún "Tipo de Actividad" cuyo nombre contenga
+              {filtroActividad === 'fumigacion' ? ' "fumig..."' : ' "abon..." o "fertiliz..."'} —
+              por eso este filtro siempre muestra todo en rojo. Revisá el nombre exacto en Gestión de Datos.
+            </div>
+          )}
+
+          {!filtroActividad && (
             <div style={styles.leyenda}>
               <span style={{ ...styles.leyendaDot, background: COLOR_VERDE }} /> Activo
               <span style={{ ...styles.leyendaDot, background: COLOR_AMARILLO, marginLeft: 12 }} /> En proceso
