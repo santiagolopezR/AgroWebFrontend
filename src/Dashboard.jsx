@@ -7,8 +7,7 @@ export default function Dashboard() {
   const [fincaId, setFincaId] = useState('')
   const [actividades, setActividades] = useState([])
   const [gastos, setGastos] = useState([])
-  const [resumenMensual, setResumenMensual] = useState([])
-  const [resumenActividades, setResumenActividades] = useState([])
+  const [filtroMesCosto, setFiltroMesCosto] = useState('')
 
   useEffect(() => {
     getUser()
@@ -29,7 +28,7 @@ export default function Dashboard() {
     if (user && fincaId) {
       fetchActividades()
       fetchGastos()
-      fetchResumenes()
+      setFiltroMesCosto('')
     }
   }, [user, fincaId])
 
@@ -62,37 +61,12 @@ export default function Dashboard() {
     setGastos(data || [])
   }
 
-  const fetchResumenes = async () => {
-    const { data: gastosData } = await supabase
-      .from('api_finca_gasto')
-      .select('fecha, total_neto')
-      .eq('finca_id', parseInt(fincaId))
-      .eq('user_id', user)
-
-    const resumen = {}
-    gastosData?.forEach(g => {
-      const mes = g.fecha.substring(0, 7)
-      resumen[mes] = (resumen[mes] || 0) + parseFloat(g.total_neto)
-    })
-
-    const resumenArray = Object.entries(resumen)
-      .map(([mes, total]) => ({ mes, total: parseFloat(total) }))
-      .sort((a, b) => b.mes.localeCompare(a.mes))
-      .slice(0, 6)
-      .reverse()
-
-    setResumenMensual(resumenArray)
-  }
-
-  const totalGastos = gastos.reduce((sum, g) => sum + parseFloat(g.total_neto || 0), 0)
-  const totalActividades = actividades.length
-  const gastoPromedio = totalActividades > 0 ? totalGastos / totalActividades : 0
-
   // Gastos aplanados a nivel de item (una fila por producto/línea, no por factura)
   const itemsGasto = gastos
     .flatMap(g => (g.api_finca_gasto_item || []).map(item => ({
       id: item.id,
       fecha: g.fecha,
+      mes: (g.fecha || '').slice(0, 7),
       factura: g.factura_numero,
       producto: item.api_producto?.nombre || item.descripcion || '—',
       cantidad: item.cantidad,
@@ -102,8 +76,18 @@ export default function Dashboard() {
     })))
     .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
 
+  const mesesDisponibles = [...new Set(itemsGasto.map(i => i.mes).filter(Boolean))].sort().reverse()
+
+  const itemsGastoFiltrados = filtroMesCosto
+    ? itemsGasto.filter(i => i.mes === filtroMesCosto)
+    : itemsGasto
+
+  const facturasFiltradas = new Set(itemsGastoFiltrados.map(i => i.factura))
+  const totalPeriodo = itemsGastoFiltrados.reduce((sum, i) => sum + (parseFloat(i.total) || 0), 0)
+  const promedioPeriodo = facturasFiltradas.size > 0 ? totalPeriodo / facturasFiltradas.size : 0
+
   const categoriaTotales = Object.entries(
-    itemsGasto.reduce((acc, item) => {
+    itemsGastoFiltrados.reduce((acc, item) => {
       acc[item.categoria] = (acc[item.categoria] || 0) + (parseFloat(item.total) || 0)
       return acc
     }, {})
@@ -126,23 +110,53 @@ export default function Dashboard() {
         </select>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <p className="text-sm text-[#6B5D45] font-bold">Total Gastos</p>
-          <p className="text-3xl font-bold text-[#1F3D2B]">${totalGastos.toLocaleString()}</p>
+      <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] mb-6">
+        <div className="flex justify-between items-center flex-wrap gap-3 mb-4">
+          <h3 className="text-xl font-bold text-[#1F3D2B]">💰 Análisis de Costos</h3>
+          <select
+            value={filtroMesCosto}
+            onChange={(e) => setFiltroMesCosto(e.target.value)}
+            className="p-2 border-2 border-[#D8D2BE] rounded text-sm"
+          >
+            <option value="">Todos los meses</option>
+            {mesesDisponibles.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
         </div>
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <p className="text-sm text-[#6B5D45] font-bold">Actividades</p>
-          <p className="text-3xl font-bold text-[#1F3D2B]">{totalActividades}</p>
+
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#D8D2BE]">
+            <p className="text-xs text-[#6B5D45] font-bold">Total del período</p>
+            <p className="text-2xl font-bold text-[#1F3D2B]">${totalPeriodo.toLocaleString()}</p>
+          </div>
+          <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#D8D2BE]">
+            <p className="text-xs text-[#6B5D45] font-bold"># Facturas</p>
+            <p className="text-2xl font-bold text-[#1F3D2B]">{facturasFiltradas.size}</p>
+          </div>
+          <div className="bg-[#F5F2E6] p-4 rounded-lg border-2 border-[#D8D2BE]">
+            <p className="text-xs text-[#6B5D45] font-bold">Promedio / factura</p>
+            <p className="text-2xl font-bold text-[#1F3D2B]">${promedioPeriodo.toLocaleString()}</p>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <p className="text-sm text-[#6B5D45] font-bold">Gasto Promedio</p>
-          <p className="text-3xl font-bold text-[#1F3D2B]">${gastoPromedio.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <p className="text-sm text-[#6B5D45] font-bold"># Gastos</p>
-          <p className="text-3xl font-bold text-[#1F3D2B]">{gastos.length}</p>
-        </div>
+
+        <h4 className="font-bold text-[#1F3D2B] mb-3">Distribución por categoría</h4>
+        {categoriaTotales.length === 0 ? (
+          <p className="text-[#6B5D45] text-sm">No hay gastos en este período.</p>
+        ) : (
+          <div className="space-y-2">
+            {categoriaTotales.map((c) => (
+              <div key={c.categoria} className="flex justify-between items-center">
+                <p className="text-sm w-32 shrink-0">{c.categoria}</p>
+                <div className="flex-1 ml-2 bg-[#D8D2BE] rounded h-6">
+                  <div
+                    className="bg-[#1F3D2B] h-6 rounded"
+                    style={{ width: `${(c.total / categoriaTotales[0].total) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm font-bold ml-4">${c.total.toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] mb-6">
@@ -184,9 +198,12 @@ export default function Dashboard() {
       </div>
 
       <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] mb-6">
-        <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Detallados</h3>
-        {itemsGasto.length === 0 ? (
-          <p className="text-[#6B5D45]">No hay gastos</p>
+        <div className="flex justify-between items-center flex-wrap gap-2 mb-4">
+          <h3 className="text-xl font-bold text-[#1F3D2B]">💰 Gastos Detallados</h3>
+          {filtroMesCosto && <span className="text-xs text-[#6B5D45]">Filtrado a {filtroMesCosto}</span>}
+        </div>
+        {itemsGastoFiltrados.length === 0 ? (
+          <p className="text-[#6B5D45]">No hay gastos en este período</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm" style={{ minWidth: 700 }}>
@@ -201,7 +218,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {itemsGasto.map(item => (
+                {itemsGastoFiltrados.map(item => (
                   <tr key={item.id} className="border-b border-[#D8D2BE]">
                     <td className="p-3">{item.fecha}</td>
                     <td className="p-3">{item.factura}</td>
@@ -215,52 +232,6 @@ export default function Dashboard() {
             </table>
           </div>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📅 Últimos 6 Meses</h3>
-          {resumenMensual.length === 0 ? (
-            <p className="text-[#6B5D45]">Sin datos</p>
-          ) : (
-            <div className="space-y-2">
-              {resumenMensual.map((mes, idx) => (
-                <div key={idx} className="flex justify-between items-center">
-                  <p className="text-sm">{mes.mes}</p>
-                  <div className="flex-1 ml-4 bg-[#D8D2BE] rounded h-6">
-                    <div 
-                      className="bg-[#1F3D2B] h-6 rounded"
-                      style={{width: `${(mes.total / Math.max(...resumenMensual.map(m => m.total))) * 100}%`}}
-                    ></div>
-                  </div>
-                  <p className="text-sm font-bold ml-4">${mes.total.toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📊 Gasto por Categoría</h3>
-          {categoriaTotales.length === 0 ? (
-            <p className="text-[#6B5D45]">Sin datos</p>
-          ) : (
-            <div className="space-y-2">
-              {categoriaTotales.map((c) => (
-                <div key={c.categoria} className="flex justify-between items-center">
-                  <p className="text-sm">{c.categoria}</p>
-                  <div className="flex-1 ml-4 bg-[#D8D2BE] rounded h-6">
-                    <div
-                      className="bg-[#1F3D2B] h-6 rounded"
-                      style={{ width: `${(c.total / categoriaTotales[0].total) * 100}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-sm font-bold ml-4">${c.total.toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )
