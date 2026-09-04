@@ -496,7 +496,7 @@ export default function RegistroGasto() {
         </div>
 
         <div className="bg-white rounded-lg border-2 border-[#D8D2BE] overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs" style={{ minWidth: 760 }}>
             <thead>
               <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
                 <th className="p-2 text-left font-bold">Categoría</th>

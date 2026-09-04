@@ -961,7 +961,7 @@ const styles = {
   selectChico: { padding: '6px 10px', border: `2px solid ${BORDER}`, borderRadius: 6, fontSize: 12, background: SURFACE, color: TEXT },
   totalesFiltroRow: { display: 'flex', gap: 8, fontSize: 12, color: TEXT_MUTED, marginTop: 10, fontWeight: 600 },
   tablaWrapper: { overflowX: 'auto', marginTop: 8 },
-  tabla: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  tabla: { width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 13 },
   th: { textAlign: 'left', padding: '8px 10px', color: TEXT_MUTED, fontSize: 12, borderBottom: `2px solid ${BORDER}`, whiteSpace: 'nowrap' },
   thRight: { textAlign: 'right', padding: '8px 10px', color: TEXT_MUTED, fontSize: 12, borderBottom: `2px solid ${BORDER}`, whiteSpace: 'nowrap' },
   td: { padding: '8px 10px', color: TEXT, borderBottom: `1px solid ${BORDER}` },
