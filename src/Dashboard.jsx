@@ -44,7 +44,7 @@ export default function Dashboard() {
   const fetchActividades = async () => {
     const { data } = await supabase
       .from('api_actividad')
-      .select('*, api_tipoactividad(nombre), api_finca(nombre)')
+      .select('*, api_tipoactividad(nombre), api_finca(nombre), api_actividad_lote(api_lote(nombre))')
       .eq('user_id', user)
       .order('fecha', { ascending: false })
       .limit(15)
@@ -54,7 +54,7 @@ export default function Dashboard() {
   const fetchGastos = async () => {
     const { data } = await supabase
       .from('api_finca_gasto')
-      .select('*, api_finca_gasto_item(*)')
+      .select('*, api_finca_gasto_item(*, api_producto(nombre, categoria))')
       .eq('finca_id', parseInt(fincaId))
       .eq('user_id', user)
       .order('fecha', { ascending: false })
@@ -87,6 +87,29 @@ export default function Dashboard() {
   const totalGastos = gastos.reduce((sum, g) => sum + parseFloat(g.total_neto || 0), 0)
   const totalActividades = actividades.length
   const gastoPromedio = totalActividades > 0 ? totalGastos / totalActividades : 0
+
+  // Gastos aplanados a nivel de item (una fila por producto/línea, no por factura)
+  const itemsGasto = gastos
+    .flatMap(g => (g.api_finca_gasto_item || []).map(item => ({
+      id: item.id,
+      fecha: g.fecha,
+      factura: g.factura_numero,
+      producto: item.api_producto?.nombre || item.descripcion || '—',
+      cantidad: item.cantidad,
+      precioUnitario: item.precio_unitario,
+      total: item.total,
+      categoria: item.api_producto?.categoria || 'Sin categoría',
+    })))
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+
+  const categoriaTotales = Object.entries(
+    itemsGasto.reduce((acc, item) => {
+      acc[item.categoria] = (acc[item.categoria] || 0) + (parseFloat(item.total) || 0)
+      return acc
+    }, {})
+  )
+    .map(([categoria, total]) => ({ categoria, total }))
+    .sort((a, b) => b.total - a.total)
 
   return (
     <div className="p-4 md:p-8 max-w-full">
@@ -128,11 +151,12 @@ export default function Dashboard() {
           <p className="text-[#6B5D45]">No hay actividades</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" style={{ minWidth: 700 }}>
               <thead>
                 <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
                   <th className="p-3 text-left font-bold">Fecha</th>
                   <th className="p-3 text-left font-bold">Finca</th>
+                  <th className="p-3 text-left font-bold">Lote</th>
                   <th className="p-3 text-left font-bold">Tipo</th>
                   <th className="p-3 text-center font-bold">Costo</th>
                   <th className="p-3 text-left font-bold">Responsable</th>
@@ -143,6 +167,11 @@ export default function Dashboard() {
                   <tr key={act.id} className="border-b border-[#D8D2BE]">
                     <td className="p-3">{act.fecha}</td>
                     <td className="p-3">{act.api_finca?.nombre || '—'}</td>
+                    <td className="p-3">
+                      {act.api_actividad_lote?.length > 0
+                        ? act.api_actividad_lote.map(al => al.api_lote?.nombre).filter(Boolean).join(', ')
+                        : '—'}
+                    </td>
                     <td className="p-3">{act.api_tipoactividad?.nombre || 'N/A'}</td>
                     <td className="p-3 text-center font-bold">${parseFloat(act.costo_total || 0).toLocaleString()}</td>
                     <td className="p-3">{act.responsable}</td>
@@ -154,33 +183,41 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
-          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Detallados</h3>
-          {gastos.length === 0 ? (
-            <p className="text-[#6B5D45]">No hay gastos</p>
-          ) : (
-            <div className="space-y-4">
-              {gastos.slice(0, 5).map(gasto => (
-                <div key={gasto.id} className="border-2 border-[#D8D2BE] rounded-lg">
-                  <div className="bg-[#F5F2E6] p-3">
-                    <p className="font-bold text-[#1F3D2B]">{gasto.factura_numero}</p>
-                    <p className="text-xs text-[#6B5D45]">{gasto.fecha}</p>
-                    <p className="text-lg font-bold text-[#1F3D2B]">${parseFloat(gasto.total_neto).toLocaleString()}</p>
-                  </div>
-                  {gasto.api_finca_gasto_item?.length > 0 && (
-                    <div className="p-3 text-xs space-y-1">
-                      {gasto.api_finca_gasto_item.slice(0, 3).map(item => (
-                        <p key={item.id} className="text-[#6B5D45]">{item.descripcion}: ${parseFloat(item.total).toLocaleString()}</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE] mb-6">
+        <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">💰 Gastos Detallados</h3>
+        {itemsGasto.length === 0 ? (
+          <p className="text-[#6B5D45]">No hay gastos</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ minWidth: 700 }}>
+              <thead>
+                <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
+                  <th className="p-3 text-left font-bold">Fecha</th>
+                  <th className="p-3 text-left font-bold">Factura</th>
+                  <th className="p-3 text-left font-bold">Producto</th>
+                  <th className="p-3 text-center font-bold">Cantidad</th>
+                  <th className="p-3 text-center font-bold">Precio U</th>
+                  <th className="p-3 text-center font-bold">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemsGasto.map(item => (
+                  <tr key={item.id} className="border-b border-[#D8D2BE]">
+                    <td className="p-3">{item.fecha}</td>
+                    <td className="p-3">{item.factura}</td>
+                    <td className="p-3">{item.producto}</td>
+                    <td className="p-3 text-center">{item.cantidad}</td>
+                    <td className="p-3 text-center">${parseFloat(item.precioUnitario || 0).toLocaleString()}</td>
+                    <td className="p-3 text-center font-bold">${parseFloat(item.total || 0).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
           <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📅 Últimos 6 Meses</h3>
           {resumenMensual.length === 0 ? (
@@ -197,6 +234,28 @@ export default function Dashboard() {
                     ></div>
                   </div>
                   <p className="text-sm font-bold ml-4">${mes.total.toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <h3 className="text-xl font-bold text-[#1F3D2B] mb-4">📊 Gasto por Categoría</h3>
+          {categoriaTotales.length === 0 ? (
+            <p className="text-[#6B5D45]">Sin datos</p>
+          ) : (
+            <div className="space-y-2">
+              {categoriaTotales.map((c) => (
+                <div key={c.categoria} className="flex justify-between items-center">
+                  <p className="text-sm">{c.categoria}</p>
+                  <div className="flex-1 ml-4 bg-[#D8D2BE] rounded h-6">
+                    <div
+                      className="bg-[#1F3D2B] h-6 rounded"
+                      style={{ width: `${(c.total / categoriaTotales[0].total) * 100}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm font-bold ml-4">${c.total.toLocaleString()}</p>
                 </div>
               ))}
             </div>
