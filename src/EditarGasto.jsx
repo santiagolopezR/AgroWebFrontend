@@ -10,7 +10,6 @@ export default function EditarGasto() {
   const [editandoId, setEditandoId] = useState(null)
   const [editData, setEditData] = useState(null)
   const [showItems, setShowItems] = useState(null)
-  const [categoriaTotales, setCategoriaTotales] = useState([])
 
   useEffect(() => {
     getUser()
@@ -36,7 +35,7 @@ export default function EditarGasto() {
   const fetchGastos = async () => {
     const { data } = await supabase
       .from('api_finca_gasto')
-      .select('*, api_finca(nombre), api_proveedor(nombre)')
+      .select('*')
       .eq('user_id', user)
       .order('fecha', { ascending: false })
     setGastos(data || [])
@@ -112,45 +111,9 @@ export default function EditarGasto() {
     ? gastos.filter(g => g.finca_id === parseInt(fincaId))
     : gastos
 
-  // Distribución de gastos por categoría (para el gráfico), sobre los gastos filtrados
-  useEffect(() => {
-    const fetchCategorias = async () => {
-      const gastoIds = gastosFiltrados.map(g => g.id)
-      if (gastoIds.length === 0) {
-        setCategoriaTotales([])
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('api_finca_gasto_item')
-        .select('total, api_producto(categoria)')
-        .in('gasto_id', gastoIds)
-
-      if (error) {
-        console.error('No se pudo cargar la distribución por categoría')
-        return
-      }
-
-      const totalesPorCategoria = {}
-      for (const item of data || []) {
-        const cat = item.api_producto?.categoria || 'Sin categoría'
-        totalesPorCategoria[cat] = (totalesPorCategoria[cat] || 0) + (parseFloat(item.total) || 0)
-      }
-
-      const ordenado = Object.entries(totalesPorCategoria)
-        .map(([categoria, total]) => ({ categoria, total }))
-        .sort((a, b) => b.total - a.total)
-
-      setCategoriaTotales(ordenado)
-    }
-
-    fetchCategorias()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gastos, fincaId])
-
   return (
     <div className="p-4 md:p-8 max-w-full">
-      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">✏️ Editar Gastos</h2>
+      <h2 className="text-3xl font-bold text-[#1F3D2B] mb-6">✏️ Ver y Editar Gastos</h2>
 
       <div className="bg-white p-4 rounded-lg border-4 border-[#1F3D2B] mb-6">
         <label className="text-sm font-bold text-[#1F3D2B]">Filtrar por Finca</label>
@@ -160,68 +123,10 @@ export default function EditarGasto() {
         </select>
       </div>
 
-      {gastosFiltrados.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* TABLA RESUMEN DE TODOS LOS GASTOS */}
-          <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
-            <h3 className="font-bold text-lg text-[#1F3D2B] mb-3">📋 Todos los gastos</h3>
-            <div className="overflow-x-auto max-h-80 overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0">
-                  <tr className="bg-[#1F3D2B] text-white">
-                    <th className="p-2 text-left">Fecha</th>
-                    <th className="p-2 text-left">Finca</th>
-                    <th className="p-2 text-left">Proveedor</th>
-                    <th className="p-2 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {gastosFiltrados.map(g => (
-                    <tr key={g.id} className="border-b border-[#D8D2BE]">
-                      <td className="p-2">{g.fecha}</td>
-                      <td className="p-2">{g.api_finca?.nombre || '—'}</td>
-                      <td className="p-2">{g.api_proveedor?.nombre || '—'}</td>
-                      <td className="p-2 text-right font-bold">${parseFloat(g.total_neto || 0).toLocaleString('es-CO')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-3 font-bold text-[#1F3D2B]">
-              Total: ${gastosFiltrados.reduce((sum, g) => sum + parseFloat(g.total_neto || 0), 0).toLocaleString('es-CO')}
-              {' '}({gastosFiltrados.length} gasto{gastosFiltrados.length === 1 ? '' : 's'})
-            </p>
-          </div>
-
-          {/* GRÁFICO DE DISTRIBUCIÓN POR CATEGORÍA */}
-          <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
-            <h3 className="font-bold text-lg text-[#1F3D2B] mb-3">📊 Distribución por categoría</h3>
-            {categoriaTotales.length === 0 ? (
-              <p className="text-sm text-[#6B5D45]">No hay items con producto/categoría para graficar.</p>
-            ) : (
-              <div className="space-y-2">
-                {(() => {
-                  const maxTotal = Math.max(...categoriaTotales.map(c => c.total))
-                  return categoriaTotales.map(c => (
-                    <div key={c.categoria}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="font-bold">{c.categoria}</span>
-                        <span>${c.total.toLocaleString('es-CO')}</span>
-                      </div>
-                      <div className="bg-[#F5F2E6] rounded h-4">
-                        <div
-                          className="bg-[#1F3D2B] h-4 rounded"
-                          style={{ width: `${(c.total / maxTotal) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                })()}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <p className="text-sm text-[#6B5D45] mb-4">
+        Para ver totales, facturas y distribución por categoría, consultá el Dashboard → "💰 Análisis de Costos".
+        Esta pantalla es solo para editar o eliminar un gasto puntual.
+      </p>
 
       <div className="space-y-4">
         {gastosFiltrados.length === 0 ? (

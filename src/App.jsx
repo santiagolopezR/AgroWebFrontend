@@ -4,8 +4,7 @@ import Dashboard from './Dashboard'
 import GestionDatos from './GestionDatos'
 import Zafras from './Zafras'
 import RegistroActividad from './RegistroActividad'
-import RegistroGasto from './RegistroGasto'
-import EditarGasto from './EditarGasto'
+import Gastos from './Gastos'
 import ImportarLotes from './ImportarLotes'
 import Dashboard_V2 from './components/Dashboard_V2'
 
@@ -134,25 +133,14 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => irA('gasto')}
+            onClick={() => irA('gastos')}
             className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
-              currentPage === 'gasto'
+              currentPage === 'gastos'
                 ? 'bg-[#EAF3EC] text-[#12211A]'
                 : 'hover:bg-[#0F2116]'
             }`}
           >
-            💰 Registrar Gasto
-          </button>
-
-          <button
-            onClick={() => irA('editargasto')}
-            className={`w-full text-left px-4 py-3 rounded-lg font-bold text-lg transition ${
-              currentPage === 'editargasto'
-                ? 'bg-[#EAF3EC] text-[#12211A]'
-                : 'hover:bg-[#0F2116]'
-            }`}
-          >
-            ✏️ Editar Gastos
+            💰 Gastos
           </button>
 
           <button
@@ -182,8 +170,7 @@ export default function App() {
         {currentPage === 'gestiondatos' && <GestionDatos />}
         {currentPage === 'zafras' && <Zafras />}
         {currentPage === 'registro' && <RegistroActividad />}
-        {currentPage === 'gasto' && <RegistroGasto />}
-        {currentPage === 'editargasto' && <EditarGasto />}
+        {currentPage === 'gastos' && <Gastos />}
         {currentPage === 'importar' && <ImportarLotes />}
       </div>
     </div>
