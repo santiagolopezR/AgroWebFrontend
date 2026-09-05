@@ -841,13 +841,23 @@ export default function Dashboard_V2() {
                         <div style={styles.productosLista}>
                           {a.productos.map((p, i) => (
                             <div key={i} style={styles.productoFila}>
-                              {p.nombre} — {p.dosisPorHa ?? '—'} {p.unidad}/ha
-                              {p.compartido ? (
-                                <span style={styles.productoNota}>
-                                  {' '}(≈ {p.cantidadEsteLote ?? '—'}{p.unidad} en este lote, de {p.cantidad}{p.unidad} repartidos en {p.numLotes} lotes)
-                                </span>
-                              ) : (
-                                <span style={styles.productoNota}> · {p.cantidad}{p.unidad} aplicados</span>
+                              <p style={styles.productoNombre}>{p.nombre}</p>
+                              <div style={styles.productoValoresRow}>
+                                <div style={styles.productoValorBox}>
+                                  <span style={styles.productoValorLabel}>Aplicado</span>
+                                  <span style={styles.productoValorNum}>
+                                    {(p.compartido ? p.cantidadEsteLote : p.cantidad) ?? '—'} {p.unidad}
+                                  </span>
+                                </div>
+                                <div style={styles.productoValorBox}>
+                                  <span style={styles.productoValorLabel}>Dosis/ha</span>
+                                  <span style={styles.productoValorNum}>{p.dosisPorHa ?? '—'} {p.unidad}</span>
+                                </div>
+                              </div>
+                              {p.compartido && (
+                                <p style={styles.productoNota}>
+                                  De {p.cantidad}{p.unidad} totales, repartidos en {p.numLotes} lotes según su área
+                                </p>
                               )}
                             </div>
                           ))}
@@ -1046,12 +1056,17 @@ const styles = {
   detailKey: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600 },
   detailVal: { fontSize: 13, color: TEXT, fontWeight: 700 },
   badge: { color: '#0F1712', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize' },
-  actividadFila: { display: 'flex', justifyContent: 'space-between', fontSize: 12 },
-  actividadBloque: { padding: '8px 0', borderBottom: `1px solid ${BORDER}` },
-  productosLista: { marginTop: 4, paddingLeft: 10 },
-  productoFila: { fontSize: 11, color: TEXT_MUTED, padding: '2px 0' },
-  productoNota: { color: TEXT_MUTED, opacity: 0.85 },
-  productoFilaVacio: { fontSize: 11, color: TEXT_MUTED, marginTop: 4, paddingLeft: 10, fontStyle: 'italic' },
+  actividadFila: { display: 'flex', justifyContent: 'space-between', fontSize: 14 },
+  actividadBloque: { padding: '12px 0', borderBottom: `1px solid ${BORDER}` },
+  productosLista: { marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 },
+  productoFila: { background: '#1B2921', border: `1px solid ${BORDER}`, borderRadius: 8, padding: '10px 12px' },
+  productoNombre: { margin: 0, fontSize: 15, fontWeight: 700, color: TEXT },
+  productoValoresRow: { display: 'flex', gap: 16, marginTop: 6 },
+  productoValorBox: { display: 'flex', flexDirection: 'column' },
+  productoValorLabel: { fontSize: 11, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
+  productoValorNum: { fontSize: 15, color: TEXT, fontWeight: 700 },
+  productoNota: { color: TEXT_MUTED, opacity: 0.9, fontSize: 12, margin: '6px 0 0' },
+  productoFilaVacio: { fontSize: 13, color: TEXT_MUTED, marginTop: 6, fontStyle: 'italic' },
   filtrosResumenRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' },
   selectChico: { padding: '6px 10px', border: `2px solid ${BORDER}`, borderRadius: 6, fontSize: 12, background: SURFACE, color: TEXT },
   totalesFiltroRow: { display: 'flex', gap: 8, fontSize: 12, color: TEXT_MUTED, marginTop: 10, fontWeight: 600 },
