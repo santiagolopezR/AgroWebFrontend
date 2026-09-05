@@ -143,6 +143,32 @@ async function obtenerGeometriaDesdeApi(fincaId) {
 
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
+// El auto-match por nombre (regex) puede no coincidir con la nomenclatura real de cada usuario
+// (ej. un tipo llamado "Nutrición" en vez de "Abono"). Se permite que el propio usuario marque
+// manualmente qué "Tipo de Actividad" cuenta para cada filtro; esa elección pisa al regex y se
+// guarda en localStorage (sin necesidad de columna nueva en la base de datos).
+function claveOverridesFiltro(user) {
+  return `agroweb_filtro_tipos_${user || 'anon'}`
+}
+
+function leerOverridesFiltro(user) {
+  try {
+    const raw = localStorage.getItem(claveOverridesFiltro(user))
+    if (!raw) return {}
+    return JSON.parse(raw) || {}
+  } catch {
+    return {}
+  }
+}
+
+function guardarOverridesFiltro(user, overrides) {
+  try {
+    localStorage.setItem(claveOverridesFiltro(user), JSON.stringify(overrides))
+  } catch {
+    // localStorage no disponible (modo privado, cuota llena, etc.): se ignora, queda el regex
+  }
+}
+
 export default function Dashboard_V2() {
   const [user, setUser] = useState(null)
 
@@ -159,6 +185,11 @@ export default function Dashboard_V2() {
   const [selectedLote, setSelectedLote] = useState(null)
   const [filtroActividad, setFiltroActividad] = useState(null)
   const [mapExpandido, setMapExpandido] = useState(false)
+
+  // Overrides manuales: qué "Tipo de Actividad" cuenta como fumigación/abono, elegidos por el
+  // usuario (pisan al auto-match por nombre). Forma: { fumigacion: [ids], abono: [ids] }
+  const [overrideTipos, setOverrideTipos] = useState({})
+  const [mostrarConfigFiltros, setMostrarConfigFiltros] = useState(false)
 
   const [filtroMesResumen, setFiltroMesResumen] = useState('')
   const [filtroTipoResumen, setFiltroTipoResumen] = useState('')
@@ -187,6 +218,12 @@ export default function Dashboard_V2() {
     }
     getUser()
   }, [])
+
+  // ---------- Overrides de filtros (localStorage, por usuario) ----------
+  useEffect(() => {
+    if (!user) return
+    setOverrideTipos(leerOverridesFiltro(user))
+  }, [user])
 
   // ---------- Fincas ----------
   useEffect(() => {
@@ -270,8 +307,12 @@ export default function Dashboard_V2() {
 
         const ahora = new Date()
         const inicioMes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-01`
-        const idsFumigacion = tiposActividad.filter((t) => FILTROS_ACTIVIDAD.fumigacion.patron.test(t.nombre)).map((t) => t.id)
-        const idsAbono = tiposActividad.filter((t) => FILTROS_ACTIVIDAD.abono.patron.test(t.nombre)).map((t) => t.id)
+        const idsFumigacion = overrideTipos.fumigacion
+          ? overrideTipos.fumigacion
+          : tiposActividad.filter((t) => FILTROS_ACTIVIDAD.fumigacion.patron.test(t.nombre)).map((t) => t.id)
+        const idsAbono = overrideTipos.abono
+          ? overrideTipos.abono
+          : tiposActividad.filter((t) => FILTROS_ACTIVIDAD.abono.patron.test(t.nombre)).map((t) => t.id)
 
         // Productos aplicados por actividad (para el detalle de lote y el resumen general)
         const actividadIds = [...new Set(relFinca.map((rel) => rel.api_actividad?.id).filter(Boolean))]
@@ -340,16 +381,7 @@ export default function Dashboard_V2() {
 
         if (!cancelado) setActividadesResumen(resumenCompleto)
 
-        // Enriquecimiento opcional de geometría desde el backend REST (no bloqueante)
-        const geoApi = await obtenerGeometriaDesdeApi(fincaId)
-        const geoApiPorId = new Map()
-        if (Array.isArray(geoApi)) {
-          for (const g of geoApi) {
-            if (g && (g.id !== undefined && g.id !== null)) geoApiPorId.set(String(g.id), g)
-          }
-        }
-
-        const procesados = (lotesData || []).map((lote) => {
+        const construirProcesados = (geoApiPorId) => (lotesData || []).map((lote) => {
           const fuenteGeo = geoApiPorId.get(String(lote.id)) || lote
           const poligono = extraerPoligono(fuenteGeo) || extraerPoligono(lote)
           const punto = poligono ? null : extraerPunto(fuenteGeo) || extraerPunto(lote)
@@ -410,7 +442,21 @@ export default function Dashboard_V2() {
           }
         })
 
-        if (!cancelado) setLotesGeo(procesados)
+        // Primer pase inmediato con la geometría que ya vive en Supabase (api_lote), sin esperar
+        // al backend Django externo (Render), que puede tardar varios segundos en "despertar" y
+        // antes dejaba el mapa centrado en la finca anterior mientras tanto.
+        if (!cancelado) setLotesGeo(construirProcesados(new Map()))
+
+        // Enriquecimiento opcional de geometría desde el backend REST (no bloqueante): si aporta
+        // algo nuevo, se recalcula y se actualiza el mapa una segunda vez.
+        const geoApi = await obtenerGeometriaDesdeApi(fincaId)
+        if (Array.isArray(geoApi) && geoApi.length > 0) {
+          const geoApiPorId = new Map()
+          for (const g of geoApi) {
+            if (g && (g.id !== undefined && g.id !== null)) geoApiPorId.set(String(g.id), g)
+          }
+          if (!cancelado) setLotesGeo(construirProcesados(geoApiPorId))
+        }
       } catch {
         if (!cancelado) setDataError('No se pudieron cargar datos')
       } finally {
@@ -463,7 +509,7 @@ export default function Dashboard_V2() {
     return () => {
       cancelado = true
     }
-  }, [user, fincaId, tiposActividad])
+  }, [user, fincaId, tiposActividad, overrideTipos])
 
   // ---------- Carga de Leaflet ----------
   useEffect(() => {
@@ -486,6 +532,22 @@ export default function Dashboard_V2() {
   const handleSelectLote = useCallback((lote) => {
     setSelectedLote(lote)
   }, [])
+
+  const idsPorRegex = useCallback(
+    (key) => tiposActividad.filter((t) => FILTROS_ACTIVIDAD[key].patron.test(t.nombre)).map((t) => t.id),
+    [tiposActividad]
+  )
+
+  const toggleOverrideTipo = useCallback(
+    (key, tipoId) => {
+      const actual = overrideTipos[key] ?? idsPorRegex(key)
+      const nuevo = actual.includes(tipoId) ? actual.filter((id) => id !== tipoId) : [...actual, tipoId]
+      const nuevosOverrides = { ...overrideTipos, [key]: nuevo }
+      setOverrideTipos(nuevosOverrides)
+      guardarOverridesFiltro(user, nuevosOverrides)
+    },
+    [overrideTipos, idsPorRegex, user]
+  )
 
   // ---------- Inicialización y actualización del mapa ----------
   useEffect(() => {
@@ -647,6 +709,11 @@ export default function Dashboard_V2() {
                 {cfg.label}
               </button>
             ))}
+            {filtroActividad && (
+              <button type="button" onClick={() => setMostrarConfigFiltros((v) => !v)} style={styles.filtroPill}>
+                ⚙️ Configurar
+              </button>
+            )}
           </div>
 
           {filtroActividad ? (
@@ -656,11 +723,36 @@ export default function Dashboard_V2() {
             </div>
           ) : null}
 
-          {filtroActividad && !tiposActividad.some((t) => FILTROS_ACTIVIDAD[filtroActividad].patron.test(t.nombre)) && (
+          {filtroActividad && mostrarConfigFiltros && (
+            <div style={{ ...styles.alertaAmarilla, marginTop: 8, background: '#1a2e22' }}>
+              <p style={{ marginBottom: 6 }}>
+                Marcá qué "Tipo de Actividad" cuenta para <strong>{FILTROS_ACTIVIDAD[filtroActividad].label}</strong>{' '}
+                (por defecto se adivina por el nombre; esto lo pisa):
+              </p>
+              {tiposActividad.length === 0 ? (
+                <p>No hay tipos de actividad cargados todavía.</p>
+              ) : (
+                tiposActividad.map((t) => {
+                  const efectivos = overrideTipos[filtroActividad] ?? idsPorRegex(filtroActividad)
+                  return (
+                    <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <input
+                        type="checkbox"
+                        checked={efectivos.includes(t.id)}
+                        onChange={() => toggleOverrideTipo(filtroActividad, t.id)}
+                      />
+                      {t.nombre}
+                    </label>
+                  )
+                })
+              )}
+            </div>
+          )}
+
+          {filtroActividad && !mostrarConfigFiltros && (overrideTipos[filtroActividad] ?? idsPorRegex(filtroActividad)).length === 0 && (
             <div style={{ ...styles.alertaAmarilla, marginTop: 8 }}>
-              ⚠️ No encontramos ningún "Tipo de Actividad" cuyo nombre contenga
-              {filtroActividad === 'fumigacion' ? ' "fumig..."' : ' "abon..." o "fertiliz..."'} —
-              por eso este filtro siempre muestra todo en rojo. Revisá el nombre exacto en Gestión de Datos.
+              ⚠️ No hay ningún "Tipo de Actividad" marcado para este filtro — por eso siempre muestra todo en rojo.
+              Tocá "⚙️ Configurar" arriba para elegir cuál corresponde.
             </div>
           )}
 
