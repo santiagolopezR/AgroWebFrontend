@@ -10,6 +10,8 @@ export default function GestionDatos() {
   // FINCAS
   const [fincas, setFincas] = useState([])
   const [newFinca, setNewFinca] = useState('')
+  const [confirmandoEliminarFinca, setConfirmandoEliminarFinca] = useState(null)
+  const [textoConfirmacionFinca, setTextoConfirmacionFinca] = useState('')
   
   // LOTES
   const [lotes, setLotes] = useState([])
@@ -106,6 +108,8 @@ export default function GestionDatos() {
 
   const deleteFinca = async (id) => {
     await supabase.from('api_finca').delete().eq('id', id)
+    setConfirmandoEliminarFinca(null)
+    setTextoConfirmacionFinca('')
     fetchFincas()
   }
 
@@ -578,9 +582,42 @@ export default function GestionDatos() {
           </div>
           <div className="space-y-2">
             {fincas.map(f => (
-              <div key={f.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
-                <p className="font-bold">{f.nombre}</p>
-                <button onClick={() => deleteFinca(f.id)} className="text-red-600 font-bold">🗑️</button>
+              <div key={f.id} className="p-3 bg-[#F5F2E6] rounded">
+                {confirmandoEliminarFinca === f.id ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-red-700">
+                      ⚠️ Esto borra la finca "{f.nombre}" y puede afectar sus lotes, actividades y gastos asociados. Es IRREVERSIBLE.
+                    </p>
+                    <p className="text-xs text-[#6B5D45]">Para confirmar, escribí el nombre exacto de la finca:</p>
+                    <input
+                      type="text"
+                      value={textoConfirmacionFinca}
+                      onChange={(e) => setTextoConfirmacionFinca(e.target.value)}
+                      placeholder={f.nombre}
+                      className="w-full p-2 border-2 border-red-400 rounded text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => deleteFinca(f.id)}
+                        disabled={textoConfirmacionFinca !== f.nombre}
+                        className="flex-1 bg-red-600 text-white px-3 py-1 rounded font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        🗑️ Eliminar definitivamente
+                      </button>
+                      <button
+                        onClick={() => { setConfirmandoEliminarFinca(null); setTextoConfirmacionFinca('') }}
+                        className="flex-1 bg-[#D8D2BE] text-[#1F3D2B] px-3 py-1 rounded font-bold text-sm"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <p className="font-bold">{f.nombre}</p>
+                    <button onClick={() => { setConfirmandoEliminarFinca(f.id); setTextoConfirmacionFinca('') }} className="text-red-600 font-bold">🗑️</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
