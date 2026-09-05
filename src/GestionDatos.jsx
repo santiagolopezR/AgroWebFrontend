@@ -185,7 +185,7 @@ export default function GestionDatos() {
 
   // ==================== PROVEEDORES ====================
   const fetchProveedores = async () => {
-    const { data } = await supabase.from('api_proveedor').select('*').eq('user_id', user)
+    const { data } = await supabase.from('api_proveedor').select('*').eq('user_id', user).order('nombre')
     setProveedores(data || [])
   }
 
@@ -615,7 +615,16 @@ export default function GestionDatos() {
                 ) : (
                   <div className="flex justify-between items-center">
                     <p className="font-bold">{f.nombre}</p>
-                    <button onClick={() => { setConfirmandoEliminarFinca(f.id); setTextoConfirmacionFinca('') }} className="text-red-600 font-bold">🗑️</button>
+                    <button
+                      onClick={() => {
+                        if (!confirm(`¿Seguro que querés eliminar la finca "${f.nombre}"? Esto no se puede deshacer.`)) return
+                        setConfirmandoEliminarFinca(f.id)
+                        setTextoConfirmacionFinca('')
+                      }}
+                      className="text-gray-400 hover:text-red-600 text-xs"
+                    >
+                      🗑️ eliminar
+                    </button>
                   </div>
                 )}
               </div>
