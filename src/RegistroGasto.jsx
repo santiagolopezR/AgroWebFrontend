@@ -620,7 +620,7 @@ export default function RegistroGasto() {
                     <p><strong>7. Descripción</strong> - Detalles adicionales (opcional)</p>
                     <p><strong>8. Cantidad</strong> - Número</p>
                     <p><strong>9. Precio Unitario</strong> - Número</p>
-                    <p><strong>10. IVA%</strong> - Ej: 19 (opcional, default 19)</p>
+                    <p><strong>10. IVA%</strong> - Ej: 19 (opcional, default 0)</p>
                     <p><strong>11. Pagado Por</strong> - Ganaderia OL o Santiago</p>
                   </div>
                 </div>

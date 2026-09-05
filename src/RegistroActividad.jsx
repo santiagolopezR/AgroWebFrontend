@@ -25,6 +25,10 @@ export default function RegistroActividad() {
   // JORNALES Y COMBUSTIBLE
   const [jornales, setJornales] = useState('')
   const [combustible, setCombustible] = useState('')
+
+  // DRON
+  const [usoDron, setUsoDron] = useState(false)
+  const [costoDronHa, setCostoDronHa] = useState('')
   
   // COSTOS ADICIONALES
   const [costosAdicionales, setCostosAdicionales] = useState([])
@@ -142,6 +146,8 @@ export default function RegistroActividad() {
     setItems([])
     setJornales('')
     setCombustible('')
+    setUsoDron(false)
+    setCostoDronHa('')
     setCostosAdicionales([])
   }
 
@@ -169,6 +175,10 @@ export default function RegistroActividad() {
           ? (combustibleTotalGuardado / costoCombustibleUnitario).toFixed(2)
           : ''
       )
+
+      const dronCostoHaGuardado = actividad.detalle_costos?.dron_costo_ha
+      setUsoDron(!!dronCostoHaGuardado)
+      setCostoDronHa(dronCostoHaGuardado ? String(dronCostoHaGuardado) : '')
 
       setLotesSeleccionados((lotesData || []).map(l => l.lote_id))
 
@@ -398,7 +408,15 @@ export default function RegistroActividad() {
       const totalProductos = items.reduce((sum, item) => sum + (item.total || 0), 0)
       const totalAdicionales = costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0)
 
-      const costoTotal = totalProductos + totalJornales + totalCombustible + totalAdicionales
+      // El costo del dron se calcula sobre el área total de los lotes seleccionados: si la
+      // actividad abarca varios potreros, el prorrateo por lote lo hace Dashboard_V2 a partir
+      // de costo_total (mismo mecanismo que combustible/jornales/productos), sin lógica aparte.
+      const areaSeleccionada = lotes
+        .filter(l => lotesSeleccionados.includes(l.id))
+        .reduce((sum, l) => sum + (l.area_hectareas || 0), 0)
+      const totalDron = usoDron ? (parseFloat(costoDronHa) || 0) * areaSeleccionada : 0
+
+      const costoTotal = totalProductos + totalJornales + totalCombustible + totalAdicionales + totalDron
 
       const datosActividad = {
         finca_id: parseInt(fincaId),
@@ -411,7 +429,9 @@ export default function RegistroActividad() {
           productos: totalProductos,
           jornales: totalJornales,
           combustible: totalCombustible,
-          adicionales: totalAdicionales
+          adicionales: totalAdicionales,
+          dron: totalDron,
+          dron_costo_ha: usoDron ? (parseFloat(costoDronHa) || 0) : 0
         },
         user_id: user
       }
@@ -680,8 +700,8 @@ export default function RegistroActividad() {
           </div>
         </div>
 
-        {/* JORNALES Y COMBUSTIBLE */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* JORNALES, COMBUSTIBLE Y DRON */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
             <h4 className="font-bold text-[#1F3D2B] mb-3">👷 Jornales</h4>
             <input type="number" step="0.01" value={jornales} onChange={(e) => setJornales(e.target.value)} placeholder="# jornales" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm mb-2" />
@@ -709,6 +729,25 @@ export default function RegistroActividad() {
             )}
             {!costosFijos.find(c => c.nombre.toLowerCase() === 'combustible') && (
               <p className="text-xs text-red-600">⚠️ Define "Combustible" en Costos Fijos</p>
+            )}
+          </div>
+
+          <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
+            <h4 className="font-bold text-[#1F3D2B] mb-3">🚁 Dron</h4>
+            <label className="flex items-center gap-2 text-sm mb-2">
+              <input type="checkbox" checked={usoDron} onChange={(e) => { setUsoDron(e.target.checked); if (!e.target.checked) setCostoDronHa('') }} className="w-4 h-4" />
+              ¿Se utilizó dron?
+            </label>
+            {usoDron && (
+              <>
+                <input type="number" step="0.01" value={costoDronHa} onChange={(e) => setCostoDronHa(e.target.value)} placeholder="Costo alquiler por hectárea" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm mb-2" />
+                <div className="text-sm">
+                  <p className="bg-[#F5F2E6] p-2 rounded font-bold">
+                    <span>Total ({lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)} ha):</span>{' '}
+                    ${((parseFloat(costoDronHa) || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)).toLocaleString('es-CO')}
+                  </p>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -769,6 +808,9 @@ export default function RegistroActividad() {
             </div>
             <div>
               <p><span className="font-bold">Combustible:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString('es-CO')}</p>
+              {usoDron && (
+                <p><span className="font-bold">Dron:</span> ${((parseFloat(costoDronHa) || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)).toLocaleString('es-CO')}</p>
+              )}
               <p><span className="font-bold">Adicionales:</span> ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString('es-CO')}</p>
             </div>
           </div>
@@ -777,6 +819,7 @@ export default function RegistroActividad() {
               items.reduce((sum, i) => sum + (i.total || 0), 0) +
               ((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)) +
               ((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)) +
+              (usoDron ? (parseFloat(costoDronHa) || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0) : 0) +
               costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0)
             ).toLocaleString('es-CO')}
           </p>
