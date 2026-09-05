@@ -820,9 +820,11 @@ export default function Dashboard_V2() {
                 <span style={styles.detailVal}>{selectedLote.costoPorHa != null ? `$${selectedLote.costoPorHa.toLocaleString('es-CO')}` : '—'}</span>
               </div>
 
-              <p style={{ ...styles.detailKey, marginTop: 16, marginBottom: 8 }}>Historial de actividades</p>
+              <p style={{ ...styles.detailKey, marginTop: 16, marginBottom: 8 }}>
+                Historial de actividades {selectedLote.actividadesRecientes?.length > 0 && '(últimas 5)'}
+              </p>
               {selectedLote.actividadesRecientes?.length > 0 ? (
-                <div>
+                <div style={styles.historialScroll}>
                   {selectedLote.actividadesRecientes.map((a) => (
                     <div key={a.id} style={styles.actividadBloque}>
                       <div style={styles.actividadFila}>
@@ -1037,6 +1039,7 @@ const styles = {
   mapContainer: { width: '100%', height: '100%', background: BG },
   mapOverlay: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,18,0.92)', color: TEXT_MUTED, fontWeight: 600, textAlign: 'center', padding: 16 },
   detailCard: { background: SURFACE, border: `2px solid ${BORDER}`, borderRadius: 10, padding: 18 },
+  historialScroll: { maxHeight: 340, overflowY: 'auto', paddingRight: 4 },
   mutedText: { color: TEXT_MUTED, fontSize: 14 },
   detailNombre: { fontSize: 18, fontWeight: 700, color: TEXT, margin: '0 0 12px' },
   detailFila: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` },
