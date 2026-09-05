@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import * as XLSX from 'xlsx'
+import BuscadorProducto from './components/BuscadorProducto'
 
-export default function RegistroActividad() {
+export default function RegistroActividad({ actividadParaEditar, editKey, onGuardado } = {}) {
   const [fincas, setFincas] = useState([])
   const [lotes, setLotes] = useState([])
   const [categorias, setCategorias] = useState([])
@@ -45,10 +46,16 @@ export default function RegistroActividad() {
   const [importDatos, setImportDatos] = useState([])
   const [importPreview, setImportPreview] = useState(false)
 
-  // EDITAR / ELIMINAR ACTIVIDADES
-  const [actividadesFinca, setActividadesFinca] = useState([])
+  // EDITAR ACTIVIDAD (disparado desde afuera, ver VerActividades.jsx / Actividades.jsx)
   const [editandoId, setEditandoId] = useState(null)
   const [cargandoEdicion, setCargandoEdicion] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  // El estado `guardando` maneja el disabled del botón (para UI), pero dos clicks
+  // disparados en el mismo tick pueden correr con el mismo closure "false" antes de
+  // que React re-renderice. El ref es la traba real: se lee/escribe en el acto, sin
+  // esperar un re-render, así que sí evita la doble inserción aunque el click llegue
+  // antes de que el botón se vea deshabilitado.
+  const guardandoRef = useRef(false)
 
   useEffect(() => {
     getUser()
@@ -70,13 +77,14 @@ export default function RegistroActividad() {
   }, [user])
 
   useEffect(() => {
-    if (fincaId) {
-      fetchLotes(fincaId)
-      fetchActividadesFinca(fincaId)
-    } else {
-      setActividadesFinca([])
-    }
+    if (fincaId) fetchLotes(fincaId)
   }, [fincaId])
+
+  // Cargar una actividad para editar cuando llega desde afuera (lista "Ver y Editar")
+  useEffect(() => {
+    if (actividadParaEditar) cargarParaEditar(actividadParaEditar)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editKey])
 
   // ==================== FETCHES ====================
   const fetchFincas = async () => {
@@ -107,7 +115,7 @@ export default function RegistroActividad() {
   }
 
   const fetchProductos = async () => {
-    const { data } = await supabase.from('api_producto').select('*').eq('user_id', user)
+    const { data } = await supabase.from('api_producto').select('*').eq('user_id', user).order('nombre')
     setProductos(data || [])
   }
 
@@ -121,21 +129,7 @@ export default function RegistroActividad() {
     setCostosFijos(data || [])
   }
 
-  // ==================== EDITAR / ELIMINAR ACTIVIDADES ====================
-  const fetchActividadesFinca = async (fid) => {
-    const { data, error } = await supabase
-      .from('api_actividad')
-      .select('*, api_tipoactividad(nombre), api_actividad_lote(lote_id)')
-      .eq('finca_id', parseInt(fid))
-      .order('fecha', { ascending: false })
-      .limit(30)
-    if (error) {
-      console.error('No se pudieron cargar las actividades de la finca')
-      return
-    }
-    setActividadesFinca(data || [])
-  }
-
+  // ==================== EDITAR ACTIVIDAD ====================
   const cancelarEdicion = () => {
     setEditandoId(null)
     setFecha('')
@@ -159,6 +153,9 @@ export default function RegistroActividad() {
       ])
 
       setEditandoId(actividad.id)
+      // La actividad puede venir de una finca distinta a la que estaba seleccionada acá
+      // (se edita desde la pestaña "Ver y Editar", que tiene su propio selector de finca).
+      if (actividad.finca_id) setFincaId(String(actividad.finca_id))
       setFecha(actividad.fecha || '')
       setTipoActividadId(actividad.tipo_id ? String(actividad.tipo_id) : '')
       setResponsable(actividad.responsable || '')
@@ -210,23 +207,6 @@ export default function RegistroActividad() {
       alert('No se pudo cargar la actividad para editar')
     } finally {
       setCargandoEdicion(false)
-    }
-  }
-
-  const eliminarActividad = async (actividad) => {
-    if (!confirm(`¿Eliminar la actividad "${actividad.api_tipoactividad?.nombre || 'Actividad'}" del ${actividad.fecha}? Esta acción no se puede deshacer.`)) return
-
-    try {
-      await supabase.from('api_actividad_producto').delete().eq('actividad_id', actividad.id)
-      await supabase.from('api_actividad_lote').delete().eq('actividad_id', actividad.id)
-      await supabase.from('api_costo_adicional').delete().eq('actividad_id', actividad.id)
-      const { error } = await supabase.from('api_actividad').delete().eq('id', actividad.id)
-      if (error) throw error
-
-      if (editandoId === actividad.id) cancelarEdicion()
-      fetchActividadesFinca(fincaId)
-    } catch (error) {
-      alert('No se pudo eliminar la actividad: ' + error.message)
     }
   }
 
@@ -389,11 +369,15 @@ export default function RegistroActividad() {
   const handleSave = async (e) => {
     e.preventDefault()
 
+    if (guardandoRef.current) return
+
     if (!fincaId || !fecha || lotesSeleccionados.length === 0 || !tipoActividadId || items.length === 0) {
       alert('Completa: Finca, Fecha, Lotes, Tipo Actividad e Items')
       return
     }
 
+    guardandoRef.current = true
+    setGuardando(true)
     try {
       // Obtener costos fijos por nombre
       const costoJornal = costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')
@@ -486,8 +470,8 @@ export default function RegistroActividad() {
         if (errorCosto) console.error('No se pudo guardar un costo adicional de la actividad')
       }
 
-      // Guardar vinculación lotes-actividad
-      for (const loteId of lotesSeleccionados) {
+      // Guardar vinculación lotes-actividad (deduplicado por si el picker dejara un id repetido)
+      for (const loteId of [...new Set(lotesSeleccionados)]) {
         const { error: errorLote } = await supabase.from('api_actividad_lote').insert([{
           actividad_id: actividadId,
           lote_id: parseInt(loteId)
@@ -498,9 +482,12 @@ export default function RegistroActividad() {
       alert(editandoId ? '✅ Actividad actualizada exitosamente' : '✅ Actividad registrada exitosamente')
 
       cancelarEdicion()
-      fetchActividadesFinca(fincaId)
+      onGuardado?.()
     } catch (error) {
       alert('Error: ' + error.message)
+    } finally {
+      guardandoRef.current = false
+      setGuardando(false)
     }
   }
 
@@ -508,19 +495,16 @@ export default function RegistroActividad() {
     <div className="p-4 md:p-8 max-w-full">
       <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
         <h2 className="text-3xl font-bold text-[#1F3D2B]">📊 Registro de Actividad</h2>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => document.getElementById('lista-actividades-finca')?.scrollIntoView({ behavior: 'smooth' })}
-            className="bg-[#1F3D2B] text-white px-4 py-2 rounded font-bold text-sm"
-          >
-            ✏️ Editar/Borrar actividades ↓
-          </button>
-          <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
-        </div>
+        <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
       </div>
 
-      {editandoId && (
+      {cargandoEdicion && (
+        <div className="bg-blue-100 border-2 border-blue-500 text-blue-800 px-4 py-3 rounded-lg font-bold mb-6">
+          ⏳ Cargando actividad para editar...
+        </div>
+      )}
+
+      {editandoId && !cargandoEdicion && (
         <div className="bg-blue-100 border-2 border-blue-500 text-blue-800 px-4 py-3 rounded-lg font-bold mb-6 flex justify-between items-center">
           <span>✏️ Editando actividad #{editandoId}</span>
           <button type="button" onClick={cancelarEdicion} className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Cancelar edición</button>
@@ -623,7 +607,11 @@ export default function RegistroActividad() {
             {lotesSeleccionados.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {lotesSeleccionados.map(loteId => {
+                  // El lote puede no estar (todavía) en `lotes` justo después de cambiar de
+                  // finca al cargar una actividad para editar (fetchLotes es async) — se salta
+                  // ese frame en vez de romper el render.
                   const lote = lotes.find(l => l.id === loteId)
+                  if (!lote) return null
                   return (
                     <div key={lote.id} className="flex items-center gap-1 bg-green-100 border-2 border-green-500 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
                       <span>{lote.nombre} ({lote.area_hectareas}ha)</span>
@@ -650,15 +638,15 @@ export default function RegistroActividad() {
           </div>
           
           <div className="bg-white rounded-lg border-2 border-[#D8D2BE] overflow-x-auto">
-            <table className="w-full text-xs" style={{ minWidth: 700 }}>
+            <table className="w-full text-xs" style={{ minWidth: 860 }}>
               <thead>
                 <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
                   <th className="p-2 text-left font-bold">Categoría</th>
                   <th className="p-2 text-left font-bold">Producto</th>
                   <th className="p-2 text-left font-bold">Descripción</th>
-                  <th className="p-2 text-center font-bold">Cantidad</th>
-                  <th className="p-2 text-center font-bold">Precio U</th>
-                  <th className="p-2 text-center font-bold">Total</th>
+                  <th className="p-2 text-center font-bold" style={{ minWidth: 90 }}>Cantidad</th>
+                  <th className="p-2 text-center font-bold" style={{ minWidth: 120 }}>Precio U</th>
+                  <th className="p-2 text-center font-bold" style={{ minWidth: 110 }}>Total</th>
                   <th className="p-2 text-center font-bold">Dosis/ha</th>
                   <th className="p-2 text-center font-bold">Acción</th>
                 </tr>
@@ -672,26 +660,31 @@ export default function RegistroActividad() {
                         {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                       </select>
                     </td>
-                    <td className="p-2">
+                    <td className="p-2" style={{ minWidth: 160 }}>
                       <div className="flex gap-1">
-                        <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="flex-1 p-1 border rounded text-xs">
-                          <option value="">Selecciona</option>
-                          {item.categoriaNombre && productos.filter(p => p.categoria?.toLowerCase().trim() === item.categoriaNombre?.toLowerCase().trim()).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                        </select>
+                        <div className="flex-1">
+                          <BuscadorProducto
+                            productos={item.categoriaNombre ? productos.filter(p => p.categoria?.toLowerCase().trim() === item.categoriaNombre?.toLowerCase().trim()) : []}
+                            value={item.productoId}
+                            onSelect={(p) => updateItem(item.id, 'productoId', String(p.id))}
+                            placeholder={item.categoriaNombre ? 'Buscar producto...' : 'Elegí categoría primero'}
+                            disabled={!item.categoriaNombre}
+                          />
+                        </div>
                         <button type="button" onClick={() => openCreateProductoModal(item.id, item.categoriaNombre)} disabled={!item.categoriaNombre} className="bg-blue-600 text-white px-2 rounded font-bold text-xs disabled:bg-gray-400">+</button>
                       </div>
                     </td>
                     <td className="p-2">
                       <input type="text" value={item.descripcion} onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)} className="w-full p-1 border rounded text-xs" />
                     </td>
-                    <td className="p-2">
+                    <td className="p-2" style={{ minWidth: 90 }}>
                       <input type="number" step="0.01" value={item.cantidad} onChange={(e) => updateItem(item.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
                     </td>
-                    <td className="p-2">
+                    <td className="p-2" style={{ minWidth: 120 }}>
                       <input type="number" step="0.01" value={item.precioUnitario} onChange={(e) => updateItem(item.id, 'precioUnitario', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
                     </td>
-                    <td className="p-2 text-center font-bold text-sm">
-                      ${item.total.toFixed(2)}
+                    <td className="p-2 text-center font-bold text-sm" style={{ minWidth: 110 }}>
+                      ${item.total.toLocaleString('es-CO')}
                     </td>
                     <td className="p-2 text-center font-bold text-sm bg-[#F5F2E6]">
                       {item.dosisHa}
@@ -831,50 +824,10 @@ export default function RegistroActividad() {
           </p>
         </div>
 
-        <button type="submit" className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116]">
-          {editandoId ? '💾 Actualizar Actividad' : '✅ Guardar Actividad'}
+        <button type="submit" disabled={guardando} className="w-full bg-[#1F3D2B] text-white font-bold py-3 rounded-lg text-lg hover:bg-[#0F2116] disabled:opacity-50 disabled:cursor-not-allowed">
+          {guardando ? '⏳ Guardando...' : editandoId ? '💾 Actualizar Actividad' : '✅ Guardar Actividad'}
         </button>
       </form>
-
-      {/* ACTIVIDADES DE ESTA FINCA - EDITAR / ELIMINAR */}
-      <div id="lista-actividades-finca" className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE] mt-6">
-        <h4 className="font-bold text-[#1F3D2B] mb-3">📋 Actividades de esta finca</h4>
-        {!fincaId ? (
-          <p className="text-sm text-[#6B5D45]">Seleccioná una finca arriba para ver, editar o borrar sus actividades.</p>
-        ) : actividadesFinca.length === 0 ? (
-            <p className="text-sm text-[#6B5D45]">Todavía no hay actividades registradas en esta finca.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
-                    <th className="p-2 text-left font-bold">Fecha</th>
-                    <th className="p-2 text-left font-bold">Tipo</th>
-                    <th className="p-2 text-left font-bold">Responsable</th>
-                    <th className="p-2 text-center font-bold">Lotes</th>
-                    <th className="p-2 text-center font-bold">Costo</th>
-                    <th className="p-2 text-center font-bold">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {actividadesFinca.map(act => (
-                    <tr key={act.id} className={`border-b border-[#D8D2BE] ${editandoId === act.id ? 'bg-blue-100' : ''}`}>
-                      <td className="p-2">{act.fecha}</td>
-                      <td className="p-2">{act.api_tipoactividad?.nombre || 'N/A'}</td>
-                      <td className="p-2">{act.responsable || '—'}</td>
-                      <td className="p-2 text-center">{act.api_actividad_lote?.length || 0}</td>
-                      <td className="p-2 text-center font-bold">${(act.costo_total || 0).toLocaleString('es-CO')}</td>
-                      <td className="p-2 text-center">
-                        <button type="button" onClick={() => cargarParaEditar(act)} disabled={cargandoEdicion} className="text-blue-600 font-bold mr-2" title="Editar">✏️</button>
-                        <button type="button" onClick={() => eliminarActividad(act)} className="text-red-600 font-bold" title="Eliminar">🗑️</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-      </div>
 
       {/* MODAL CREAR PRODUCTO */}
       {showModalProducto && (
