@@ -28,7 +28,6 @@ export default function RegistroActividad() {
 
   // DRON
   const [usoDron, setUsoDron] = useState(false)
-  const [costoDronHa, setCostoDronHa] = useState('')
   
   // COSTOS ADICIONALES
   const [costosAdicionales, setCostosAdicionales] = useState([])
@@ -147,7 +146,6 @@ export default function RegistroActividad() {
     setJornales('')
     setCombustible('')
     setUsoDron(false)
-    setCostoDronHa('')
     setCostosAdicionales([])
   }
 
@@ -176,9 +174,7 @@ export default function RegistroActividad() {
           : ''
       )
 
-      const dronCostoHaGuardado = actividad.detalle_costos?.dron_costo_ha
-      setUsoDron(!!dronCostoHaGuardado)
-      setCostoDronHa(dronCostoHaGuardado ? String(dronCostoHaGuardado) : '')
+      setUsoDron(!!actividad.detalle_costos?.dron)
 
       setLotesSeleccionados((lotesData || []).map(l => l.lote_id))
 
@@ -402,19 +398,21 @@ export default function RegistroActividad() {
       // Obtener costos fijos por nombre
       const costoJornal = costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')
       const costoCombustibleCosto = costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')
+      const costoDronFijo = costosFijos.find(c => c.nombre.toLowerCase() === 'dron')
 
       const totalJornales = (parseFloat(jornales) || 0) * (costoJornal?.valor_unitario || 0)
       const totalCombustible = (parseFloat(combustible) || 0) * (costoCombustibleCosto?.valor_unitario || 0)
       const totalProductos = items.reduce((sum, item) => sum + (item.total || 0), 0)
       const totalAdicionales = costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0)
 
-      // El costo del dron se calcula sobre el área total de los lotes seleccionados: si la
+      // El costo del dron sale de "Dron" en Costos Fijos (valor por hectárea, igual que
+      // Combustible/Jornal), multiplicado por el área de los lotes seleccionados. Si la
       // actividad abarca varios potreros, el prorrateo por lote lo hace Dashboard_V2 a partir
       // de costo_total (mismo mecanismo que combustible/jornales/productos), sin lógica aparte.
       const areaSeleccionada = lotes
         .filter(l => lotesSeleccionados.includes(l.id))
         .reduce((sum, l) => sum + (l.area_hectareas || 0), 0)
-      const totalDron = usoDron ? (parseFloat(costoDronHa) || 0) * areaSeleccionada : 0
+      const totalDron = usoDron ? (costoDronFijo?.valor_unitario || 0) * areaSeleccionada : 0
 
       const costoTotal = totalProductos + totalJornales + totalCombustible + totalAdicionales + totalDron
 
@@ -430,8 +428,7 @@ export default function RegistroActividad() {
           jornales: totalJornales,
           combustible: totalCombustible,
           adicionales: totalAdicionales,
-          dron: totalDron,
-          dron_costo_ha: usoDron ? (parseFloat(costoDronHa) || 0) : 0
+          dron: totalDron
         },
         user_id: user
       }
@@ -509,9 +506,18 @@ export default function RegistroActividad() {
 
   return (
     <div className="p-4 md:p-8 max-w-full">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
         <h2 className="text-3xl font-bold text-[#1F3D2B]">📊 Registro de Actividad</h2>
-        <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => document.getElementById('lista-actividades-finca')?.scrollIntoView({ behavior: 'smooth' })}
+            className="bg-[#1F3D2B] text-white px-4 py-2 rounded font-bold text-sm"
+          >
+            ✏️ Editar/Borrar actividades ↓
+          </button>
+          <button onClick={() => setShowModalImport(true)} className="bg-blue-600 text-white px-6 py-2 rounded font-bold">📊 Importar Excel</button>
+        </div>
       </div>
 
       {editandoId && (
@@ -735,19 +741,19 @@ export default function RegistroActividad() {
           <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE]">
             <h4 className="font-bold text-[#1F3D2B] mb-3">🚁 Dron</h4>
             <label className="flex items-center gap-2 text-sm mb-2">
-              <input type="checkbox" checked={usoDron} onChange={(e) => { setUsoDron(e.target.checked); if (!e.target.checked) setCostoDronHa('') }} className="w-4 h-4" />
+              <input type="checkbox" checked={usoDron} onChange={(e) => setUsoDron(e.target.checked)} className="w-4 h-4" />
               ¿Se utilizó dron?
             </label>
-            {usoDron && (
-              <>
-                <input type="number" step="0.01" value={costoDronHa} onChange={(e) => setCostoDronHa(e.target.value)} placeholder="Costo alquiler por hectárea" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm mb-2" />
-                <div className="text-sm">
-                  <p className="bg-[#F5F2E6] p-2 rounded font-bold">
-                    <span>Total ({lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)} ha):</span>{' '}
-                    ${((parseFloat(costoDronHa) || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)).toLocaleString('es-CO')}
-                  </p>
-                </div>
-              </>
+            {usoDron && costosFijos.find(c => c.nombre.toLowerCase() === 'dron') && (
+              <div className="text-sm">
+                <p className="bg-[#F5F2E6] p-2 rounded font-bold">
+                  <span>Total ({lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)} ha):</span>{' '}
+                  ${((costosFijos.find(c => c.nombre.toLowerCase() === 'dron')?.valor_unitario || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)).toLocaleString('es-CO')}
+                </p>
+              </div>
+            )}
+            {usoDron && !costosFijos.find(c => c.nombre.toLowerCase() === 'dron') && (
+              <p className="text-xs text-red-600">⚠️ Define "Dron" en Costos Fijos (valor por hectárea)</p>
             )}
           </div>
         </div>
@@ -809,7 +815,7 @@ export default function RegistroActividad() {
             <div>
               <p><span className="font-bold">Combustible:</span> ${((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)).toLocaleString('es-CO')}</p>
               {usoDron && (
-                <p><span className="font-bold">Dron:</span> ${((parseFloat(costoDronHa) || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)).toLocaleString('es-CO')}</p>
+                <p><span className="font-bold">Dron:</span> ${((costosFijos.find(c => c.nombre.toLowerCase() === 'dron')?.valor_unitario || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0)).toLocaleString('es-CO')}</p>
               )}
               <p><span className="font-bold">Adicionales:</span> ${costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0).toLocaleString('es-CO')}</p>
             </div>
@@ -819,7 +825,7 @@ export default function RegistroActividad() {
               items.reduce((sum, i) => sum + (i.total || 0), 0) +
               ((parseFloat(jornales) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'jornal')?.valor_unitario || 0)) +
               ((parseFloat(combustible) || 0) * (costosFijos.find(c => c.nombre.toLowerCase() === 'combustible')?.valor_unitario || 0)) +
-              (usoDron ? (parseFloat(costoDronHa) || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0) : 0) +
+              (usoDron ? (costosFijos.find(c => c.nombre.toLowerCase() === 'dron')?.valor_unitario || 0) * lotes.filter(l => lotesSeleccionados.includes(l.id)).reduce((sum, l) => sum + (l.area_hectareas || 0), 0) : 0) +
               costosAdicionales.reduce((sum, c) => sum + c.valor_total, 0)
             ).toLocaleString('es-CO')}
           </p>
@@ -831,10 +837,11 @@ export default function RegistroActividad() {
       </form>
 
       {/* ACTIVIDADES DE ESTA FINCA - EDITAR / ELIMINAR */}
-      {fincaId && (
-        <div className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE] mt-6">
-          <h4 className="font-bold text-[#1F3D2B] mb-3">📋 Actividades de esta finca</h4>
-          {actividadesFinca.length === 0 ? (
+      <div id="lista-actividades-finca" className="bg-white p-4 rounded-lg border-2 border-[#D8D2BE] mt-6">
+        <h4 className="font-bold text-[#1F3D2B] mb-3">📋 Actividades de esta finca</h4>
+        {!fincaId ? (
+          <p className="text-sm text-[#6B5D45]">Seleccioná una finca arriba para ver, editar o borrar sus actividades.</p>
+        ) : actividadesFinca.length === 0 ? (
             <p className="text-sm text-[#6B5D45]">Todavía no hay actividades registradas en esta finca.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -867,8 +874,7 @@ export default function RegistroActividad() {
               </table>
             </div>
           )}
-        </div>
-      )}
+      </div>
 
       {/* MODAL CREAR PRODUCTO */}
       {showModalProducto && (
