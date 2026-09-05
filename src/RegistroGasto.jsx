@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 import * as XLSX from 'xlsx'
+import BuscadorProducto from './components/BuscadorProducto'
 
 export default function RegistroGasto() {
   const [fincas, setFincas] = useState([])
@@ -60,12 +61,12 @@ export default function RegistroGasto() {
   }
 
   const fetchProductos = async () => {
-    const { data } = await supabase.from('api_producto').select('*').eq('user_id', user)
+    const { data } = await supabase.from('api_producto').select('*').eq('user_id', user).order('nombre')
     setProductos(data || [])
   }
 
   const fetchProveedores = async () => {
-    const { data } = await supabase.from('api_proveedor').select('*').eq('user_id', user)
+    const { data } = await supabase.from('api_proveedor').select('*').eq('user_id', user).order('nombre')
     setProveedores(data || [])
   }
 
@@ -496,17 +497,17 @@ export default function RegistroGasto() {
         </div>
 
         <div className="bg-white rounded-lg border-2 border-[#D8D2BE] overflow-x-auto">
-          <table className="w-full text-xs" style={{ minWidth: 760 }}>
+          <table className="w-full text-xs" style={{ minWidth: 920 }}>
             <thead>
               <tr className="bg-[#F5F2E6] border-b-2 border-[#1F3D2B]">
                 <th className="p-2 text-left font-bold">Categoría</th>
                 <th className="p-2 text-left font-bold">Producto</th>
                 <th className="p-2 text-left font-bold">Descripción</th>
-                <th className="p-2 text-center font-bold">Cantidad</th>
-                <th className="p-2 text-center font-bold">Precio U</th>
-                <th className="p-2 text-center font-bold">Total</th>
+                <th className="p-2 text-center font-bold" style={{ minWidth: 90 }}>Cantidad</th>
+                <th className="p-2 text-center font-bold" style={{ minWidth: 120 }}>Precio U</th>
+                <th className="p-2 text-center font-bold" style={{ minWidth: 120 }}>Total</th>
                 <th className="p-2 text-center font-bold">IVA %</th>
-                <th className="p-2 text-center font-bold">Total+IVA</th>
+                <th className="p-2 text-center font-bold" style={{ minWidth: 110 }}>Total+IVA</th>
                 <th className="p-2 text-center font-bold">Acción</th>
               </tr>
             </thead>
@@ -519,32 +520,37 @@ export default function RegistroGasto() {
                       {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                     </select>
                   </td>
-                  <td className="p-2">
+                  <td className="p-2" style={{ minWidth: 160 }}>
                     <div className="flex gap-1">
-                      <select value={item.productoId} onChange={(e) => updateItem(item.id, 'productoId', e.target.value)} className="flex-1 p-1 border rounded text-xs">
-                        <option value="">Selecciona</option>
-                        {item.categoriaNombre && productos.filter(p => p.categoria?.toLowerCase().trim() === item.categoriaNombre?.toLowerCase().trim()).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                      </select>
+                      <div className="flex-1">
+                        <BuscadorProducto
+                          productos={item.categoriaNombre ? productos.filter(p => p.categoria?.toLowerCase().trim() === item.categoriaNombre?.toLowerCase().trim()) : []}
+                          value={item.productoId}
+                          onSelect={(p) => updateItem(item.id, 'productoId', String(p.id))}
+                          placeholder={item.categoriaNombre ? 'Buscar producto...' : 'Elegí categoría primero'}
+                          disabled={!item.categoriaNombre}
+                        />
+                      </div>
                       <button type="button" onClick={() => openCreateProductoModal(item.id, item.categoriaId, item.categoriaNombre)} disabled={!item.categoriaNombre} className="bg-blue-600 text-white px-2 rounded font-bold text-xs disabled:bg-gray-400">+</button>
                     </div>
                   </td>
                   <td className="p-2">
                     <input type="text" value={item.descripcion} onChange={(e) => updateItem(item.id, 'descripcion', e.target.value)} className="w-full p-1 border rounded text-xs" />
                   </td>
-                  <td className="p-2">
+                  <td className="p-2" style={{ minWidth: 90 }}>
                     <input type="number" step="0.01" value={item.cantidad} onChange={(e) => updateItem(item.id, 'cantidad', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
                   </td>
-                  <td className="p-2">
+                  <td className="p-2" style={{ minWidth: 120 }}>
                     <input type="number" step="0.01" value={item.precioUnitario} onChange={(e) => updateItem(item.id, 'precioUnitario', e.target.value)} className="w-full p-1 border rounded text-xs text-center" required />
                   </td>
-                  <td className="p-2">
+                  <td className="p-2" style={{ minWidth: 120 }}>
                     <input type="number" step="0.01" value={item.total} onChange={(e) => updateItem(item.id, 'total', e.target.value)} className="w-full p-1 border rounded text-xs text-center font-bold" />
                   </td>
                   <td className="p-2">
                     <input type="number" step="0.01" value={item.ivaItem} onChange={(e) => updateItem(item.id, 'ivaItem', e.target.value)} className="w-full p-1 border rounded text-xs text-center" />
                   </td>
-                  <td className="p-2 text-center font-bold">
-                    ${item.totalConIva.toFixed(2)}
+                  <td className="p-2 text-center font-bold" style={{ minWidth: 110 }}>
+                    ${item.totalConIva.toLocaleString('es-CO')}
                   </td>
                   <td className="p-2 text-center">
                     <button type="button" onClick={() => removeItem(item.id)} className="text-red-600 font-bold">❌</button>
