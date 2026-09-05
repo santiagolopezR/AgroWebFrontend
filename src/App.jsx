@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient'
 import Dashboard from './Dashboard'
 import GestionDatos from './GestionDatos'
 import Zafras from './Zafras'
-import RegistroActividad from './RegistroActividad'
+import Actividades from './Actividades'
 import Gastos from './Gastos'
 import ImportarLotes from './ImportarLotes'
 import Dashboard_V2 from './components/Dashboard_V2'
@@ -169,7 +169,7 @@ export default function App() {
         {currentPage === 'dashboard-v2' && <Dashboard_V2 />}
         {currentPage === 'gestiondatos' && <GestionDatos />}
         {currentPage === 'zafras' && <Zafras />}
-        {currentPage === 'registro' && <RegistroActividad />}
+        {currentPage === 'registro' && <Actividades />}
         {currentPage === 'gastos' && <Gastos />}
         {currentPage === 'importar' && <ImportarLotes />}
       </div>
