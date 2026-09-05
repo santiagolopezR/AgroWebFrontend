@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from './supabaseClient'
 import { parseGeorreferencia, esErrorColumnaInexistente, GEO_FORMATO_AYUDA } from './lib/geoLote'
 
@@ -22,14 +23,27 @@ export default function GestionDatos() {
   // PROVEEDORES
   const [proveedores, setProveedores] = useState([])
   const [newProveedor, setNewProveedor] = useState({ nombre: '', contacto: '', email: '' })
-  
+  const [editingProveedorId, setEditingProveedorId] = useState(null)
+  const [editProveedorValues, setEditProveedorValues] = useState({ nombre: '', contacto: '', email: '' })
+
   // CATEGORÍAS
   const [categorias, setCategorias] = useState([])
   const [newCategoria, setNewCategoria] = useState('')
-  
+  const [editingCategoriaId, setEditingCategoriaId] = useState(null)
+  const [editCategoriaValue, setEditCategoriaValue] = useState('')
+
   // COSTOS FIJOS DINÁMICOS
   const [costosFijos, setCostosFijos] = useState([])
   const [newCostoFijo, setNewCostoFijo] = useState({ nombre: '', valor_unitario: '', unidad: '' })
+  const [editingCostoFijoId, setEditingCostoFijoId] = useState(null)
+  const [editCostoFijoValues, setEditCostoFijoValues] = useState({ nombre: '', valor_unitario: '', unidad: '' })
+
+  // PRODUCTOS
+  const [productos, setProductos] = useState([])
+  const [newProducto, setNewProducto] = useState({ nombre: '', categoria: '', unidad: '', precio_actual: '' })
+  const [editingProductoId, setEditingProductoId] = useState(null)
+  const [editProductoValues, setEditProductoValues] = useState({ nombre: '', categoria: '', unidad: '', precio_actual: '' })
+  const [importandoProductos, setImportandoProductos] = useState(false)
   
   // PRÉSTAMOS
   const [prestamos, setPrestamos] = useState([])
@@ -67,6 +81,7 @@ export default function GestionDatos() {
       fetchProveedores()
       fetchCategorias()
       fetchCostosFijos()
+      fetchProductos()
       fetchPrestamos()
     }
   }, [user])
@@ -191,6 +206,25 @@ export default function GestionDatos() {
     fetchProveedores()
   }
 
+  const iniciarEdicionProveedor = (p) => {
+    setEditingProveedorId(p.id)
+    setEditProveedorValues({ nombre: p.nombre || '', contacto: p.contacto || '', email: p.email || '' })
+  }
+
+  const updateProveedor = async (id) => {
+    const { error } = await supabase.from('api_proveedor').update({
+      nombre: editProveedorValues.nombre,
+      contacto: editProveedorValues.contacto,
+      email: editProveedorValues.email,
+    }).eq('id', id)
+    if (error) {
+      alert('No se pudo actualizar el proveedor: ' + error.message)
+      return
+    }
+    setEditingProveedorId(null)
+    fetchProveedores()
+  }
+
   // ==================== CATEGORÍAS ====================
   const fetchCategorias = async () => {
     const { data } = await supabase.from('api_categoria').select('*')
@@ -210,6 +244,22 @@ export default function GestionDatos() {
 
   const deleteCategoria = async (id) => {
     await supabase.from('api_categoria').delete().eq('id', id)
+    fetchCategorias()
+  }
+
+  const iniciarEdicionCategoria = (c) => {
+    setEditingCategoriaId(c.id)
+    setEditCategoriaValue(c.nombre || '')
+  }
+
+  const updateCategoria = async (id) => {
+    if (!editCategoriaValue) return
+    const { error } = await supabase.from('api_categoria').update({ nombre: editCategoriaValue }).eq('id', id)
+    if (error) {
+      alert('No se pudo actualizar la categoría: ' + error.message)
+      return
+    }
+    setEditingCategoriaId(null)
     fetchCategorias()
   }
 
@@ -240,6 +290,138 @@ export default function GestionDatos() {
   const deleteCostoFijo = async (id) => {
     await supabase.from('api_costo_fijo').delete().eq('id', id)
     fetchCostosFijos()
+  }
+
+  const iniciarEdicionCostoFijo = (c) => {
+    setEditingCostoFijoId(c.id)
+    setEditCostoFijoValues({ nombre: c.nombre || '', valor_unitario: String(c.valor_unitario ?? ''), unidad: c.unidad || '' })
+  }
+
+  const updateCostoFijo = async (id) => {
+    if (!editCostoFijoValues.nombre || !editCostoFijoValues.valor_unitario) return
+    const { error } = await supabase.from('api_costo_fijo').update({
+      nombre: editCostoFijoValues.nombre,
+      valor_unitario: parseFloat(editCostoFijoValues.valor_unitario),
+      unidad: editCostoFijoValues.unidad,
+    }).eq('id', id)
+    if (error) {
+      alert('No se pudo actualizar el costo fijo: ' + error.message)
+      return
+    }
+    setEditingCostoFijoId(null)
+    fetchCostosFijos()
+  }
+
+  // ==================== PRODUCTOS ====================
+  const fetchProductos = async () => {
+    const { data, error } = await supabase.from('api_producto').select('*').eq('user_id', user).order('nombre')
+    if (error) console.error('No se pudieron cargar los productos')
+    setProductos(data || [])
+  }
+
+  const createProducto = async () => {
+    if (!newProducto.nombre) return
+    const { error } = await supabase.from('api_producto').insert([{
+      nombre: newProducto.nombre,
+      categoria: newProducto.categoria,
+      unidad: newProducto.unidad,
+      precio_actual: parseFloat(newProducto.precio_actual) || 0,
+      user_id: user,
+    }])
+    if (error) {
+      alert('No se pudo crear el producto: ' + error.message)
+      return
+    }
+    setNewProducto({ nombre: '', categoria: '', unidad: '', precio_actual: '' })
+    fetchProductos()
+  }
+
+  const deleteProducto = async (id) => {
+    await supabase.from('api_producto').delete().eq('id', id)
+    fetchProductos()
+  }
+
+  const iniciarEdicionProducto = (p) => {
+    setEditingProductoId(p.id)
+    setEditProductoValues({
+      nombre: p.nombre || '',
+      categoria: p.categoria || '',
+      unidad: p.unidad || '',
+      precio_actual: String(p.precio_actual ?? ''),
+    })
+  }
+
+  const updateProducto = async (id) => {
+    if (!editProductoValues.nombre) return
+    const { error } = await supabase.from('api_producto').update({
+      nombre: editProductoValues.nombre,
+      categoria: editProductoValues.categoria,
+      unidad: editProductoValues.unidad,
+      precio_actual: parseFloat(editProductoValues.precio_actual) || 0,
+    }).eq('id', id)
+    if (error) {
+      alert('No se pudo actualizar el producto: ' + error.message)
+      return
+    }
+    setEditingProductoId(null)
+    fetchProductos()
+  }
+
+  // Importación masiva de productos desde Excel: columnas Nombre / Categoría / Unidad / Precio
+  const importarProductosExcel = async (file) => {
+    if (!file) return
+    setImportandoProductos(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const wb = XLSX.read(event.target.result, { type: 'binary' })
+          const ws = wb.Sheets[wb.SheetNames[0]]
+          const filas = XLSX.utils.sheet_to_json(ws)
+
+          if (filas.length === 0) {
+            alert('El archivo no tiene filas para importar')
+            return
+          }
+
+          const nuevos = filas
+            .map((fila) => ({
+              nombre: String(fila['Nombre'] || fila['nombre'] || '').trim(),
+              categoria: String(fila['Categoría'] || fila['Categoria'] || fila['categoria'] || '').trim(),
+              unidad: String(fila['Unidad'] || fila['unidad'] || '').trim(),
+              precio_actual: parseFloat(fila['Precio'] || fila['precio'] || fila['Precio Actual'] || 0) || 0,
+              user_id: user,
+            }))
+            .filter((p) => p.nombre)
+
+          if (nuevos.length === 0) {
+            alert('No se encontraron filas válidas (revisá que la columna "Nombre" esté presente)')
+            return
+          }
+
+          const { error } = await supabase.from('api_producto').insert(nuevos)
+          if (error) {
+            alert('No se pudieron importar los productos: ' + error.message)
+            return
+          }
+
+          alert(`✅ ${nuevos.length} producto(s) importado(s)`)
+          fetchProductos()
+        } catch {
+          alert('No se pudo leer el archivo. Verificá que sea un Excel válido (.xlsx)')
+        } finally {
+          setImportandoProductos(false)
+        }
+      }
+      reader.onerror = () => {
+        alert('No se pudo leer el archivo')
+        setImportandoProductos(false)
+      }
+      reader.readAsBinaryString(file)
+    } catch {
+      alert('No se pudo procesar el archivo')
+      setImportandoProductos(false)
+    }
   }
 
   // ==================== PRÉSTAMOS ====================
@@ -362,6 +544,7 @@ export default function GestionDatos() {
           { id: 'proveedores', label: '🚚 Proveedores' },
           { id: 'categorias', label: '🏷️ Categorías' },
           { id: 'costos-fijos', label: '💰 Costos Fijos' },
+          { id: 'productos', label: '🧪 Productos' },
           { id: 'prestamos', label: '💵 Préstamos' },
           { id: 'balance-prestamos', label: '📊 Balance Préstamos' }
         ].map(tab => (
@@ -527,12 +710,29 @@ export default function GestionDatos() {
           </div>
           <div className="space-y-2">
             {proveedores.map(p => (
-              <div key={p.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
-                <div>
-                  <p className="font-bold">{p.nombre}</p>
-                  <p className="text-xs text-[#6B5D45]">{p.email}</p>
-                </div>
-                <button onClick={() => deleteProveedor(p.id)} className="text-red-600 font-bold">🗑️</button>
+              <div key={p.id} className="p-3 bg-[#F5F2E6] rounded">
+                {editingProveedorId === p.id ? (
+                  <div className="space-y-2">
+                    <input type="text" value={editProveedorValues.nombre} onChange={(e) => setEditProveedorValues({ ...editProveedorValues, nombre: e.target.value })} placeholder="Nombre" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <input type="text" value={editProveedorValues.contacto} onChange={(e) => setEditProveedorValues({ ...editProveedorValues, contacto: e.target.value })} placeholder="Contacto" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <input type="email" value={editProveedorValues.email} onChange={(e) => setEditProveedorValues({ ...editProveedorValues, email: e.target.value })} placeholder="Email" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <div className="flex gap-2">
+                      <button onClick={() => updateProveedor(p.id)} className="flex-1 bg-green-600 text-white px-3 py-1 rounded font-bold text-sm">✔️ Guardar</button>
+                      <button onClick={() => setEditingProveedorId(null)} className="flex-1 bg-[#D8D2BE] text-[#1F3D2B] px-3 py-1 rounded font-bold text-sm">✖️ Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold">{p.nombre}</p>
+                      <p className="text-xs text-[#6B5D45]">{p.email}</p>
+                    </div>
+                    <div>
+                      <button onClick={() => iniciarEdicionProveedor(p)} className="text-blue-600 font-bold mr-2">✏️</button>
+                      <button onClick={() => deleteProveedor(p.id)} className="text-red-600 font-bold">🗑️</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -555,12 +755,27 @@ export default function GestionDatos() {
           </div>
           <div className="space-y-2">
             {categorias.map(c => (
-              <div key={c.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded">
-                <div>
-                  <p className="font-bold">{c.nombre}</p>
-                  <p className="text-xs text-[#6B5D45]">{c.user_id ? '👤 Personal' : '🌍 Predeterminada'}</p>
-                </div>
-                {c.user_id && <button onClick={() => deleteCategoria(c.id)} className="text-red-600 font-bold">🗑️</button>}
+              <div key={c.id} className="p-3 bg-[#F5F2E6] rounded">
+                {editingCategoriaId === c.id ? (
+                  <div className="flex gap-2">
+                    <input type="text" value={editCategoriaValue} onChange={(e) => setEditCategoriaValue(e.target.value)} className="flex-1 p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <button onClick={() => updateCategoria(c.id)} className="bg-green-600 text-white px-3 py-1 rounded font-bold text-sm">✔️</button>
+                    <button onClick={() => setEditingCategoriaId(null)} className="bg-[#D8D2BE] text-[#1F3D2B] px-3 py-1 rounded font-bold text-sm">✖️</button>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold">{c.nombre}</p>
+                      <p className="text-xs text-[#6B5D45]">{c.user_id ? '👤 Personal' : '🌍 Predeterminada'}</p>
+                    </div>
+                    {c.user_id && (
+                      <div>
+                        <button onClick={() => iniciarEdicionCategoria(c)} className="text-blue-600 font-bold mr-2">✏️</button>
+                        <button onClick={() => deleteCategoria(c.id)} className="text-red-600 font-bold">🗑️</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -613,18 +828,103 @@ export default function GestionDatos() {
           <h4 className="font-bold text-[#1F3D2B] mb-3">Costos Registrados</h4>
           <div className="space-y-2">
             {costosFijos.map(c => (
-              <div key={c.id} className="flex justify-between items-center p-3 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
-                <div>
-                  <p className="font-bold text-[#1F3D2B]">{c.nombre}</p>
-                  <p className="text-sm text-[#6B5D45]">${c.valor_unitario.toLocaleString('es-CO')} {c.unidad}</p>
-                </div>
-                <button onClick={() => deleteCostoFijo(c.id)} className="text-red-600 font-bold">🗑️</button>
+              <div key={c.id} className="p-3 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+                {editingCostoFijoId === c.id ? (
+                  <div className="space-y-2">
+                    <input type="text" value={editCostoFijoValues.nombre} onChange={(e) => setEditCostoFijoValues({ ...editCostoFijoValues, nombre: e.target.value })} placeholder="Nombre" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <input type="number" step="0.01" value={editCostoFijoValues.valor_unitario} onChange={(e) => setEditCostoFijoValues({ ...editCostoFijoValues, valor_unitario: e.target.value })} placeholder="Valor unitario" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <input type="text" value={editCostoFijoValues.unidad} onChange={(e) => setEditCostoFijoValues({ ...editCostoFijoValues, unidad: e.target.value })} placeholder="Unidad" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <div className="flex gap-2">
+                      <button onClick={() => updateCostoFijo(c.id)} className="flex-1 bg-green-600 text-white px-3 py-1 rounded font-bold text-sm">✔️ Guardar</button>
+                      <button onClick={() => setEditingCostoFijoId(null)} className="flex-1 bg-[#D8D2BE] text-[#1F3D2B] px-3 py-1 rounded font-bold text-sm">✖️ Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-[#1F3D2B]">{c.nombre}</p>
+                      <p className="text-sm text-[#6B5D45]">${c.valor_unitario.toLocaleString('es-CO')} {c.unidad}</p>
+                    </div>
+                    <div>
+                      <button onClick={() => iniciarEdicionCostoFijo(c)} className="text-blue-600 font-bold mr-2">✏️</button>
+                      <button onClick={() => deleteCostoFijo(c.id)} className="text-red-600 font-bold">🗑️</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
           {costosFijos.length === 0 && (
             <p className="text-center text-[#6B5D45] p-4">No hay costos registrados. Agrega el primero.</p>
+          )}
+        </div>
+      )}
+
+      {/* ==================== PRODUCTOS ==================== */}
+      {activeTab === 'productos' && (
+        <div className="bg-white p-6 rounded-lg border-2 border-[#D8D2BE]">
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <h3 className="text-xl font-bold text-[#1F3D2B]">🧪 Productos</h3>
+            <label className={`px-4 py-2 rounded font-bold text-sm cursor-pointer ${importandoProductos ? 'bg-[#D8D2BE] text-[#6B5D45]' : 'bg-blue-600 text-white'}`}>
+              {importandoProductos ? 'Importando…' : '📁 Importar Excel'}
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                disabled={importandoProductos}
+                onChange={(e) => { importarProductosExcel(e.target.files?.[0]); e.target.value = '' }}
+              />
+            </label>
+          </div>
+
+          <p className="text-xs text-[#6B5D45] mb-4">
+            El Excel debe tener columnas: <strong>Nombre</strong> (obligatoria), Categoría, Unidad, Precio.
+          </p>
+
+          <div className="mb-6 p-4 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+            <h4 className="font-bold text-[#1F3D2B] mb-3">Agregar Nuevo Producto</h4>
+            <div className="space-y-2">
+              <input type="text" value={newProducto.nombre} onChange={(e) => setNewProducto({ ...newProducto, nombre: e.target.value })} placeholder="Nombre" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              <input type="text" value={newProducto.categoria} onChange={(e) => setNewProducto({ ...newProducto, categoria: e.target.value })} placeholder="Categoría" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              <input type="text" value={newProducto.unidad} onChange={(e) => setNewProducto({ ...newProducto, unidad: e.target.value })} placeholder="Unidad (ej: litro, kg, unidad)" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              <input type="number" step="0.01" value={newProducto.precio_actual} onChange={(e) => setNewProducto({ ...newProducto, precio_actual: e.target.value })} placeholder="Precio actual" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+              <button onClick={createProducto} className="w-full bg-green-600 text-white px-4 py-2 rounded font-bold">➕ Agregar Producto</button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {productos.map(p => (
+              <div key={p.id} className="p-3 bg-[#F5F2E6] rounded border-2 border-[#D8D2BE]">
+                {editingProductoId === p.id ? (
+                  <div className="space-y-2">
+                    <input type="text" value={editProductoValues.nombre} onChange={(e) => setEditProductoValues({ ...editProductoValues, nombre: e.target.value })} placeholder="Nombre" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <input type="text" value={editProductoValues.categoria} onChange={(e) => setEditProductoValues({ ...editProductoValues, categoria: e.target.value })} placeholder="Categoría" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <input type="text" value={editProductoValues.unidad} onChange={(e) => setEditProductoValues({ ...editProductoValues, unidad: e.target.value })} placeholder="Unidad" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <input type="number" step="0.01" value={editProductoValues.precio_actual} onChange={(e) => setEditProductoValues({ ...editProductoValues, precio_actual: e.target.value })} placeholder="Precio actual" className="w-full p-2 border-2 border-[#D8D2BE] rounded text-sm" />
+                    <div className="flex gap-2">
+                      <button onClick={() => updateProducto(p.id)} className="flex-1 bg-green-600 text-white px-3 py-1 rounded font-bold text-sm">✔️ Guardar</button>
+                      <button onClick={() => setEditingProductoId(null)} className="flex-1 bg-[#D8D2BE] text-[#1F3D2B] px-3 py-1 rounded font-bold text-sm">✖️ Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-bold text-[#1F3D2B]">{p.nombre}</p>
+                      <p className="text-sm text-[#6B5D45]">{p.categoria || 'Sin categoría'} · ${Number(p.precio_actual || 0).toLocaleString('es-CO')} {p.unidad ? `/${p.unidad}` : ''}</p>
+                    </div>
+                    <div>
+                      <button onClick={() => iniciarEdicionProducto(p)} className="text-blue-600 font-bold mr-2">✏️</button>
+                      <button onClick={() => deleteProducto(p.id)} className="text-red-600 font-bold">🗑️</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {productos.length === 0 && (
+            <p className="text-center text-[#6B5D45] p-4">No hay productos registrados todavía.</p>
           )}
         </div>
       )}
